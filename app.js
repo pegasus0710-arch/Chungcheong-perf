@@ -200,7 +200,7 @@ function NumInput({ value, onChange, color, placeholder = "0", small = false }) 
 // ═══════════════════════════════════════════════════
 //  INPUT TAB
 // ═══════════════════════════════════════════════════
-function InputTab({ data, setData }) {
+function InputTab({ data, setData, onSave, saveState, hasUnsaved }) {
   const [yr, setYr] = useState("26");
   const [mode, setMode] = useState("single");
   const [mi, setMi] = useState(0);
@@ -308,6 +308,35 @@ function InputTab({ data, setData }) {
             </div>
           </div>
         )}
+
+        {/* ── 저장 버튼 ── */}
+        <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", justifyContent:"center", gap:6 }}>
+          <button
+            onClick={onSave}
+            disabled={saveState === "saving"}
+            style={{
+              padding:"10px 24px", borderRadius:9, border:"none", cursor: saveState==="saving" ? "default" : "pointer",
+              fontFamily:"inherit", fontWeight:800, fontSize:13,
+              background: saveState==="saving" ? C.border
+                        : saveState==="saved"   ? C.green
+                        : hasUnsaved            ? `linear-gradient(135deg, ${C.accent}, ${C.blue})`
+                        :                        C.border2,
+              color: saveState==="saving" ? C.muted
+                   : saveState==="saved"  ? "#fff"
+                   : hasUnsaved           ? "#fff"
+                   :                       C.muted,
+              boxShadow: hasUnsaved && saveState==="idle" ? `0 0 16px ${C.accent}60` : "none",
+              transition:"all .2s",
+            }}>
+            {saveState === "saving" ? "저장 중..." : saveState === "saved" ? "✓ 저장완료" : "💾 저장하기"}
+          </button>
+          {hasUnsaved && saveState === "idle" && (
+            <span style={{ color:C.orange, fontSize:10, fontWeight:600 }}>● 저장하지 않은 변경사항이 있습니다</span>
+          )}
+          {saveState === "error" && (
+            <span style={{ color:C.red, fontSize:10, fontWeight:600 }}>⚠ 서버 저장 실패 · 로컬 백업됨</span>
+          )}
+        </div>
       </div>
 
       {mode === "single" ? (
@@ -1254,15 +1283,15 @@ function Analysis({ data }) {
 //  APP ROOT
 // ═══════════════════════════════════════════════════
 function App() {
-  const [tab, setTab]   = useState("input");
-  const [data, setData] = useState(initData);
-  const [saved, setSaved] = useState(false);
+  const [tab, setTab]     = useState("input");
+  const [data, setData]   = useState(initData);
+  const [saveState, setSaveState] = useState("idle"); // idle | saving | saved | error
+  const [hasUnsaved, setHasUnsaved] = useState(false);
 
-  // ── Firestore 연동 ──────────────────────────────
-  // 저장 위치: Firestore > perf > main (단일 문서)
+  // ── Firestore 문서 참조 ──────────────────────────
   const DOC_REF = () => window.db.collection("perf").doc("main");
 
-  // 앱 시작 시 Firestore에서 데이터 로드
+  // ── 앱 시작: Firestore에서 데이터 로드 ──────────
   useEffect(() => {
     (async () => {
       try {
@@ -1271,38 +1300,45 @@ function App() {
           setData(snap.data().perfData || initData());
         }
       } catch(e) {
-        // Firestore 실패 시 localStorage 폴백
         try {
           const local = localStorage.getItem("perf_data_v3");
           if (local) setData(JSON.parse(local));
         } catch {}
       } finally {
-        window.__appReady = true; // 로딩 완료 신호
+        window.__appReady = true;
       }
     })();
   }, []);
 
+  // ── 로컬 상태만 업데이트 (입력할 때마다 호출) ───
+  // Firestore 저장 없음 → 빠른 UI 반응
   const handleSetData = useCallback((updater) => {
     setData(prev => {
       const next = typeof updater === "function" ? updater(prev) : updater;
-      (async () => {
-        try {
-          // Firestore 저장 (모든 기기에서 동기화)
-          await DOC_REF().set({ perfData: next, updatedAt: new Date().toISOString() });
-          // localStorage 백업 (오프라인 대비)
-          localStorage.setItem("perf_data_v3", JSON.stringify(next));
-          setSaved(true);
-          setTimeout(() => setSaved(false), 2000);
-        } catch(e) {
-          // Firestore 실패해도 localStorage에는 저장
-          try { localStorage.setItem("perf_data_v3", JSON.stringify(next)); } catch {}
-          setSaved(true);
-          setTimeout(() => setSaved(false), 2000);
-        }
-      })();
+      setHasUnsaved(true); // 미저장 표시
       return next;
     });
   }, []);
+
+  // ── 저장 버튼 클릭 시 Firestore에 저장 ──────────
+  const handleSave = useCallback(async () => {
+    setSaveState("saving");
+    try {
+      await DOC_REF().set({
+        perfData:  data,
+        updatedAt: new Date().toISOString(),
+      });
+      localStorage.setItem("perf_data_v3", JSON.stringify(data));
+      setSaveState("saved");
+      setHasUnsaved(false);
+      setTimeout(() => setSaveState("idle"), 2500);
+    } catch(e) {
+      // Firestore 실패 시 localStorage만 저장
+      try { localStorage.setItem("perf_data_v3", JSON.stringify(data)); } catch {}
+      setSaveState("error");
+      setTimeout(() => setSaveState("idle"), 3000);
+    }
+  }, [data]);
 
   const TABS = [
     { k:"dashboard", l:"대시보드",  icon:"◈" },
@@ -1351,7 +1387,10 @@ function App() {
 
           {/* Right side */}
           <div style={{ marginLeft:"auto", display:"flex", gap:8, alignItems:"center", flexShrink:0 }}>
-            {saved && <span style={{ color:C.green, fontSize:11, fontWeight:600 }}>✓ 저장됨</span>}
+            {saveState === "saved"  && <span style={{ color:C.green,  fontSize:11, fontWeight:600 }}>✓ 저장완료</span>}
+            {saveState === "saving" && <span style={{ color:C.orange, fontSize:11, fontWeight:600 }}>저장 중...</span>}
+            {saveState === "error"  && <span style={{ color:C.red,    fontSize:11, fontWeight:600 }}>⚠ 저장실패 (로컬백업됨)</span>}
+            {hasUnsaved && saveState === "idle" && <span style={{ color:C.orange, fontSize:11, fontWeight:600 }}>● 미저장</span>}
             <Chip color={C.muted2}>24년</Chip>
             <Chip color={C.accent}>25년</Chip>
             <Chip color={C.blue}>26년</Chip>
@@ -1375,7 +1414,7 @@ function App() {
 
         {tab === "dashboard" && <Dashboard data={data} />}
         {tab === "analysis"  && <Analysis  data={data} />}
-        {tab === "input"     && <InputTab  data={data} setData={handleSetData} />}
+        {tab === "input"     && <InputTab  data={data} setData={handleSetData} onSave={handleSave} saveState={saveState} hasUnsaved={hasUnsaved} />}
       </div>
 
       {/* ── Footer: Logic Summary ── */}
