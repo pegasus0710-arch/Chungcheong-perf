@@ -1454,7 +1454,7 @@ function App() {
           </nav>
 
           <div style={{ marginLeft:"auto", display:"flex", gap:6, alignItems:"center", flexShrink:0 }}>
-            <span style={{ color:C.muted, fontSize:9 }}>v6</span>
+            <span style={{ color:C.muted, fontSize:9 }}>v8</span>
             <span style={{ color: dbStatus.startsWith("✅")?C.green:dbStatus.startsWith("❌")?C.red:C.orange,
               fontSize:10, fontWeight:600 }}>{dbStatus}</span>
             <Chip color={C.muted2}>24년</Chip>
@@ -1478,6 +1478,8 @@ function App() {
           </p>
         </div>
 
+        {/* debug */}
+        <div id="dbg" style={{background:"#1a0a00",border:"1px solid #f97316",borderRadius:8,padding:"10px 16px",marginBottom:14,fontSize:11}}><div style={{color:"#f97316",fontWeight:700,marginBottom:6}}>🔍 디버그 v8 · DB: {dbStatus}</div><div style={{color:"#fbbf24"}}>24/매출/1월 CE: <b style={{color:"#fff"}}>{String(data?.["24"]?.["매출"]?.perf?.[0]?.CE ?? "없음")}</b> | 25/매출/1월 CE: <b style={{color:"#fff"}}>{String(data?.["25"]?.["매출"]?.perf?.[0]?.CE ?? "없음")}</b></div><div style={{color:"#94a3b8",fontSize:10}}>연도키: {Object.keys(data||{}).join(",")} | 24키: {Object.keys(data?.["24"]||{}).join(",")} | 24매출키: {Object.keys(data?.["24"]?.["매출"]||{}).join(",")}</div></div>
         {tab==="dashboard" && <Dashboard data={data} mode={mode} />}
         {tab==="analysis"  && <Analysis  data={data} mode={mode} />}
         {tab==="input"     && <InputTab  data={data} setData={handleSetData} mode={mode}
