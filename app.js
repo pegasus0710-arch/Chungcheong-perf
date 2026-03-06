@@ -9,7 +9,7 @@
    ═══════════════════════════════════════════════ */
 
 const { useState, useEffect, useCallback, useMemo } = React;
-const APP_VER = "v11";
+const APP_VER = "v12";
 
 // ─── 상수 ───────────────────────────────────────
 const MONTHS    = ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"];
@@ -46,21 +46,31 @@ const initData = () => ({
 });
 
 // ─── 구버전 데이터 마이그레이션 ─────────────────
+// ─── 데이터 정규화 (Firestore 키 형식 무관하게 처리) ─
+const normalizeMonths = src => {
+  const result = {};
+  for (let i=0; i<12; i++) {
+    // Firestore에서 숫자키(0)/문자키("0") 모두 시도
+    const v = src?.[i] || src?.[String(i)] || {};
+    result[String(i)] = {};
+    INP_KEYS.forEach(k => { result[String(i)][k] = v[k] ?? ""; });
+  }
+  return result;
+};
+
 const migrate = raw => {
   if (!raw) return initData();
   const result = initData();
   ["24","25","26"].forEach(yr => {
     if (!raw[yr]) return;
     MODES.forEach(mode => {
-      const src = raw[yr]?.[mode] || (mode==="매출" && !raw[yr]["매출"] ? raw[yr] : null);
+      // 구버전(판매/매출 분리 전) 데이터는 매출로 이동
+      const src = raw[yr]?.[mode]
+        || (mode==="매출" && !raw[yr]?.["매출"] ? raw[yr] : null);
       if (!src) return;
       ["perf","target"].forEach(type => {
         if (!src[type]) return;
-        const normalized = {};
-        Object.entries(src[type]).forEach(([k,v]) => {
-          normalized[mk(parseInt(k))] = v; // 숫자/문자 모두 문자열로 정규화
-        });
-        result[yr][mode][type] = normalized;
+        result[yr][mode][type] = normalizeMonths(src[type]);
       });
     });
   });
@@ -999,6 +1009,9 @@ function App() {
         if (snap.exists) {                          // ← 속성 (함수 아님)
           const raw = snap.data().perfData;
           const loaded = migrate(raw);
+          // 로딩 확인용 — CE 값이 있으면 표시
+          const testCE = loaded?.["24"]?.["매출"]?.perf?.["0"]?.CE;
+          setDbStatus(testCE ? `✅ 로드됨 (CE:${parseFloat(testCE).toFixed(0)}억)` : "✅ 연결됨(데이터확인중)");
           setData(loaded);
           localStorage.setItem("cst_v10", JSON.stringify(loaded));
           setDbStatus("✅ 연결됨");
