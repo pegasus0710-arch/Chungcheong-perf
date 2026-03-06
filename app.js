@@ -1294,6 +1294,7 @@ function App() {
   const [saveState, setSaveState] = useState("idle");
   const [hasUnsaved, setHasUnsaved] = useState(false);
 
+  const DOC_REF = () => window.db.collection("perf").doc("main");
   const [dbStatus, setDbStatus] = useState("로딩중...");
 
   // ── 구버전 데이터 → 신버전 자동 변환 ──────────────
