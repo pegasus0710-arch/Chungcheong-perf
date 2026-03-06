@@ -1,0 +1,70 @@
+/* ═══════════════════════════════════════════
+   Samsung MX 실적관리 시스템 — 스타일시트
+   수정 범위: 색상·폰트·레이아웃·간격 등
+   ═══════════════════════════════════════════ */
+
+/* ── Reset & Base ── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  background: #060e1c;
+  font-family: 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  color: #d8eaf8;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar        { width: 6px; height: 6px; }
+::-webkit-scrollbar-track  { background: #060e1c; }
+::-webkit-scrollbar-thumb  { background: #1a2f47; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #263d56; }
+
+/* ── Number input: hide spin buttons ── */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type=number] {
+  -moz-appearance: textfield;
+}
+
+/* ── Button base ── */
+button {
+  cursor: pointer;
+  font-family: inherit;
+  transition: opacity .15s, background .15s, border-color .15s, color .15s;
+}
+button:hover  { opacity: 0.88; }
+button:active { opacity: 0.75; }
+
+/* ── Table base ── */
+table { border-collapse: collapse; }
+
+/* ── Utility: sticky column shadow ── */
+.sticky-col {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+}
+
+/* ── Transition helpers ── */
+.fade-in {
+  animation: fadeIn .25s ease forwards;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
