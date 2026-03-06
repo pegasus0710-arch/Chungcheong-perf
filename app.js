@@ -1294,7 +1294,7 @@ function App() {
   const [saveState, setSaveState] = useState("idle");
   const [hasUnsaved, setHasUnsaved] = useState(false);
 
-  const DOC_REF = () => window.db.collection("perf").doc("main");
+  const [dbStatus, setDbStatus] = useState("로딩중...");
 
   // ── 구버전 데이터 → 신버전 자동 변환 ──────────────
   // 구버전: data[yr].perf / data[yr].target
@@ -1318,21 +1318,22 @@ function App() {
   useEffect(() => {
     (async () => {
       try {
-        // ── 항상 Firestore 우선 로드 ──
         const snap = await DOC_REF().get();
         if (snap.exists()) {
           const raw = snap.data().perfData;
           const migrated = migrateData(raw);
           setData(migrated);
-          // Firestore 성공 시 localStorage도 최신으로 동기화
           localStorage.setItem("perf_data_v3", JSON.stringify(migrated));
+          console.log("✅ Firestore 로드 성공:", JSON.stringify(migrated).slice(0,200));
+          setDbStatus("✅ DB연결");
         } else {
-          // Firestore에 문서 없으면 localStorage 확인
+          console.log("⚠️ Firestore 문서 없음");
           const local = localStorage.getItem("perf_data_v3");
           if (local) setData(migrateData(JSON.parse(local)));
         }
       } catch(e) {
-        // Firestore 실패 시에만 localStorage 폴백
+        console.log("❌ Firestore 오류:", e.message);
+        setDbStatus("❌ DB오류: "+e.message.slice(0,30));
         try {
           const local = localStorage.getItem("perf_data_v3");
           if (local) setData(migrateData(JSON.parse(local)));
@@ -1452,6 +1453,9 @@ function App() {
           </nav>
 
           <div style={{ marginLeft:"auto", display:"flex", gap:6, alignItems:"center", flexShrink:0 }}>
+            <span style={{ color:C.muted, fontSize:9 }}>v6</span>
+            <span style={{ color: dbStatus.startsWith("✅")?C.green:dbStatus.startsWith("❌")?C.red:C.orange,
+              fontSize:10, fontWeight:600 }}>{dbStatus}</span>
             <Chip color={C.muted2}>24년</Chip>
             <Chip color={C.accent}>25년</Chip>
             <Chip color={modeColor}>26년</Chip>
