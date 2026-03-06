@@ -9,7 +9,7 @@
    ═══════════════════════════════════════════════ */
 
 const { useState, useEffect, useCallback, useMemo } = React;
-const APP_VER = "v10";
+const APP_VER = "v11";
 
 // ─── 상수 ───────────────────────────────────────
 const MONTHS    = ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"];
@@ -121,14 +121,22 @@ const growText  = v => { const n=gNum(v); return n>0?`▲${v}%`:n<0?`▼${Math.a
 //  실적 입력 탭
 // ═══════════════════════════════════════════════
 function InputTab({data, setData, mode, onSave, saveState, hasUnsaved}) {
-  const [yr, setYr]   = useState("26");
-  const [mi, setMi]   = useState(() => new Date().getMonth());
+  const [yr, setYr]         = useState("26");
+  const [mi, setMi]         = useState(0);
+  const [inputMode, setInputMode] = useState("single"); // single | bulk
 
   const hasTgt = yr !== "24";
   const mColor = C[mode];
   const mD = data[yr]?.[mode] || emptyYear(hasTgt);
   const pD = mD.perf   || emptyMonths();
   const tD = mD.target || emptyMonths();
+
+  // 데이터 있는 마지막 월로 자동 이동 (Firebase 로드 후에도 재실행)
+  useEffect(() => {
+    for (let i=11; i>=0; i--) {
+      if (INP_KEYS.some(k => gNum(pD[mk(i)]?.[k]) > 0)) { setMi(i); return; }
+    }
+  }, [yr, mode, data]); // data 포함 → Firebase 로드 완료 후 재실행
 
   const setVal = useCallback((type, monthIdx, key, val) => {
     setData(prev => {
@@ -145,11 +153,8 @@ function InputTab({data, setData, mode, onSave, saveState, hasUnsaved}) {
     });
   }, [yr, mode, hasTgt, setData]);
 
-  // 선택 월 행 데이터
   const pRow = fullRow(pD[mk(mi)]);
   const tRow = hasTgt ? fullRow(tD[mk(mi)]) : {};
-
-  // 연간 합계
   const pYear = key => sumM(pD, key);
   const tYear = key => sumM(tD, key);
 
@@ -158,7 +163,7 @@ function InputTab({data, setData, mode, onSave, saveState, hasUnsaved}) {
 
       {/* 컨트롤 바 */}
       <div style={{background:C.card2,border:`1px solid ${C.b1}`,borderRadius:12,
-        padding:"12px 16px",display:"flex",gap:12,alignItems:"center",flexWrap:"wrap"}}>
+        padding:"12px 16px",display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
 
         {/* 연도 */}
         <div style={{display:"flex",gap:4}}>
@@ -172,21 +177,35 @@ function InputTab({data, setData, mode, onSave, saveState, hasUnsaved}) {
           ))}
         </div>
 
-        {/* 월 탭 */}
-        <div style={{display:"flex",gap:2,flexWrap:"wrap",flex:1}}>
-          {MONTHS.map((m,i)=>{
-            const has = INP_KEYS.some(k=>gNum(pD[mk(i)]?.[k])>0);
-            return (
-              <button key={m} onClick={()=>setMi(i)} style={{
-                padding:"4px 8px",borderRadius:5,cursor:"pointer",fontSize:11,fontWeight:600,
-                fontFamily:"inherit",border:`1px solid ${mi===i?mColor:has?C.green+"60":C.b1}`,
-                background:mi===i?mColor+"22":"transparent",
-                color:mi===i?mColor:has?C.green:C.muted}}>
-                {m.replace("월","")}
-              </button>
-            );
-          })}
+        {/* 입력방식 */}
+        <div style={{display:"flex",gap:3}}>
+          {[["single","월별입력"],["bulk","전체일괄"]].map(([v,l])=>(
+            <button key={v} onClick={()=>setInputMode(v)} style={{
+              padding:"5px 11px",borderRadius:6,cursor:"pointer",fontSize:11,fontWeight:700,
+              fontFamily:"inherit",border:`1px solid ${inputMode===v?C.blue:C.b1}`,
+              background:inputMode===v?C.blue+"22":"transparent",
+              color:inputMode===v?C.blue:C.muted}}>{l}</button>
+          ))}
         </div>
+
+        {/* 월 탭 (월별 모드) */}
+        {inputMode==="single" && (
+          <div style={{display:"flex",gap:2,flexWrap:"wrap",flex:1}}>
+            {MONTHS.map((m,i)=>{
+              const has = INP_KEYS.some(k=>gNum(pD[mk(i)]?.[k])>0);
+              return (
+                <button key={m} onClick={()=>setMi(i)} style={{
+                  padding:"4px 8px",borderRadius:5,cursor:"pointer",fontSize:11,fontWeight:600,
+                  fontFamily:"inherit",border:`1px solid ${mi===i?mColor:has?C.green+"60":C.b1}`,
+                  background:mi===i?mColor+"22":"transparent",
+                  color:mi===i?mColor:has?C.green:C.muted}}>
+                  {m.replace("월","")}
+                </button>
+              );
+            })}
+          </div>
+        )}
+        {inputMode==="bulk" && <div style={{flex:1}}/>}
 
         {/* 저장 버튼 */}
         <button onClick={onSave} disabled={saveState==="saving"} style={{
@@ -199,9 +218,86 @@ function InputTab({data, setData, mode, onSave, saveState, hasUnsaved}) {
         </button>
       </div>
 
-      {/* 입력 영역 */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr auto",gap:12,
-        '@media(max-width:768px)':{gridTemplateColumns:"1fr"}}}>
+      {/* 전체 일괄 입력 */}
+      {inputMode==="bulk" && (
+        <div style={{background:C.card2,border:`1px solid ${C.b1}`,borderRadius:12,padding:16,overflowX:"auto"}}>
+          <div style={{color:C.text,fontWeight:800,fontSize:13,marginBottom:4}}>
+            {yr}년 · {mode} · 전체 일괄 입력
+            <span style={{color:C.muted,fontSize:11,fontWeight:400,marginLeft:8}}>억원 (소수점 가능)</span>
+          </div>
+          {hasTgt && (
+            <div style={{display:"flex",gap:8,marginBottom:10,fontSize:11}}>
+              <Chip c={mColor}>실적 (상단)</Chip>
+              <Chip c={C.blue}>목표 (하단)</Chip>
+            </div>
+          )}
+          <table style={{borderCollapse:"collapse",fontSize:11}}>
+            <thead>
+              <tr style={{borderBottom:`1px solid ${C.b1}`}}>
+                <th style={{padding:"5px 12px",textAlign:"left",color:C.muted,fontWeight:600,
+                  minWidth:72,position:"sticky",left:0,background:C.card2,zIndex:2}}>항목</th>
+                {MONTHS.map(m=>(
+                  <th key={m} style={{padding:"5px 4px",textAlign:"center",color:C.muted,
+                    fontWeight:600,minWidth:hasTgt?98:60}}>{m}</th>
+                ))}
+                <th style={{padding:"5px 10px",textAlign:"right",color:C.accent,fontWeight:700,minWidth:56}}>합계</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ROWS.filter(r=>r.inp).map(r=>(
+                <tr key={r.key} style={{borderBottom:`1px solid ${C.b1}18`}}>
+                  <td style={{padding:"4px 12px",paddingLeft:12+r.lv*12,
+                    color:KC[r.key]||C.muted2,fontWeight:r.lv===0?700:500,fontSize:11,
+                    position:"sticky",left:0,background:C.card2,zIndex:1,whiteSpace:"nowrap"}}>
+                    {r.lv>0?"└ ":""}{r.key}
+                  </td>
+                  {MONTHS.map((_,mi2)=>{
+                    const pv = pD[mk(mi2)]?.[r.key]??"";
+                    const tv = hasTgt?(tD[mk(mi2)]?.[r.key]??""):null;
+                    const p=gNum(pv), t=gNum(tv??0);
+                    const a=hasTgt&&t>0?rate(p,t):null;
+                    return (
+                      <td key={mi2} style={{padding:"2px 4px",textAlign:"center"}}>
+                        <div style={{display:"flex",flexDirection:"column",gap:1,alignItems:"center"}}>
+                          <input type="number" step="any" min="0" placeholder="0" value={pv}
+                            onChange={e=>setVal("perf",mi2,r.key,e.target.value)}
+                            style={{width:hasTgt?42:54,background:C.bg,border:`1px solid ${C.b1}`,
+                              borderRadius:4,padding:"3px 5px",color:C.text,fontSize:10,
+                              outline:"none",textAlign:"right",fontFamily:"inherit"}}
+                            onFocus={e=>e.target.style.borderColor=KC[r.key]||C.accent}
+                            onBlur={e=>e.target.style.borderColor=C.b1}
+                          />
+                          {hasTgt&&(
+                            <input type="number" step="any" min="0" placeholder="0" value={tv??""}
+                              onChange={e=>setVal("target",mi2,r.key,e.target.value)}
+                              style={{width:42,background:C.bg,border:`1px solid ${C.b1}`,
+                                borderRadius:4,padding:"3px 5px",color:C.blue,fontSize:10,
+                                outline:"none",textAlign:"right",fontFamily:"inherit"}}
+                              onFocus={e=>e.target.style.borderColor=C.blue}
+                              onBlur={e=>e.target.style.borderColor=C.b1}
+                            />
+                          )}
+                          {a&&<span style={{color:pctColor(a),fontSize:9,fontWeight:700}}>{a}%</span>}
+                        </div>
+                      </td>
+                    );
+                  })}
+                  <td style={{padding:"4px 10px",textAlign:"right"}}>
+                    <span title={fmtD(sumM(pD,r.key))}
+                      style={{color:KC[r.key]||C.accent,fontWeight:700,fontSize:11,cursor:"default"}}>
+                      {fmt(sumM(pD,r.key))}억
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* 월별 입력 영역 */}
+      {inputMode==="single" && (
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr auto",gap:12}}>
 
         {/* 실적 입력 */}
         <div style={{background:C.card2,border:`1px solid ${mColor}44`,borderRadius:12,
@@ -393,6 +489,7 @@ function InputTab({data, setData, mode, onSave, saveState, hasUnsaved}) {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }
