@@ -7,7 +7,7 @@
    반응형: 모바일/태블릿/PC 지원
    ═══════════════════════════════════════════════ */
 const { useState, useEffect, useCallback, useMemo, useRef } = React;
-const APP_VER = "v17";
+const APP_VER = "v18";
 
 // ─── 상수 ─────────────────────────────────────
 const MONTHS   = ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"];
@@ -892,46 +892,75 @@ function InputTab({data,setData,mode,onSave,saveState,hasUnsaved}){
     const pv=pRow[row.key], tv=tRow[row.key], ppv=ppRow[row.key];
     const ar = hasTgt&&gNum(tv)>0 ? pct(pv,tv) : null;
     const gr = prevP&&gNum(ppv)>0  ? grw(pv,ppv) : null;
+    // 목표 전년비
+    const tgr = prevP&&gNum(ppv)>0 ? grw(gNum(tv),gNum(ppv)) : null;
     const isBg = GROUP_BG[row.key];
     return (
       <div style={{
         display:"grid",
-        gridTemplateColumns:"120px 1fr 1fr auto auto",
-        gap:8,alignItems:"center",
-        padding:"5px 10px",
+        gridTemplateColumns:`140px 1fr ${hasTgt?"1fr":""}`,
+        gap:6,alignItems:"stretch",
+        padding:"4px 10px",
         background:isBg||"transparent",
-        borderRadius:row.lv===0?8:5,
         borderLeft:row.lv===0?`3px solid ${row.gc||C.b1}`:"none",
         marginBottom:row.gs&&row.lv===0?2:1,
-        marginTop:row.gs&&row.lv===0?6:0,
+        marginTop:row.gs&&row.lv===0?4:0,
       }}>
-        <RowLabel row={row}/>
-        {/* 실적 */}
-        <NumInput value={row.auto?pv:pD[sk(mi)]?.[row.key]}
-          readOnly={row.auto}
-          color={row.gc||mColor}
-          onChange={v=>setVal("perf",mi,row.key,v)}/>
-        {/* 목표 */}
-        {hasTgt
-          ? <NumInput value={row.auto?tRow[row.key]:tD[sk(mi)]?.[row.key]}
-              readOnly={row.auto} color={C.blue}
-              onChange={v=>setVal("target",mi,row.key,v)}/>
-          : <div/>
-        }
-        {/* 달성률 */}
-        {ar!==null
-          ? <span style={{color:pctC(ar),fontSize:11,fontWeight:700,minWidth:44,textAlign:"right"}}>
-              {ar}%
-            </span>
-          : <span style={{color:C.muted,fontSize:10,minWidth:44}}/>
-        }
-        {/* 성장률 */}
-        {gr!==null
-          ? <span style={{color:grwC(gr),fontSize:11,fontWeight:700,minWidth:48,textAlign:"right"}}>
-              {grwT(gr)}
-            </span>
-          : <span style={{minWidth:48}}/>
-        }
+        <div style={{display:"flex",alignItems:"center"}}>
+          <RowLabel row={row}/>
+        </div>
+
+        {/* ── 실적 셀: 입력 + 달성률 + 성장률 ── */}
+        <div style={{
+          background:mColor+"0d",border:`1px solid ${mColor}33`,borderRadius:7,
+          padding:"5px 8px",display:"flex",flexDirection:"column",gap:2,
+        }}>
+          <div style={{display:"flex",alignItems:"center",gap:6}}>
+            <span style={{color:mColor,fontSize:9,fontWeight:700,width:20,flexShrink:0}}>실적</span>
+            <NumInput value={row.auto?pv:pD[sk(mi)]?.[row.key]}
+              readOnly={row.auto} color={row.gc||mColor}
+              onChange={v=>setVal("perf",mi,row.key,v)}/>
+            <span style={{color:C.muted,fontSize:9,flexShrink:0}}>억</span>
+          </div>
+          <div style={{display:"flex",gap:8,paddingLeft:26}}>
+            {ar!==null&&(
+              <span style={{display:"flex",alignItems:"center",gap:2}}>
+                <span style={{color:C.muted,fontSize:8}}>달성</span>
+                <span style={{color:pctC(ar),fontSize:10,fontWeight:800}}>{ar}%</span>
+              </span>
+            )}
+            {gr!==null&&(
+              <span style={{display:"flex",alignItems:"center",gap:2}}>
+                <span style={{color:C.muted,fontSize:8}}>전년비</span>
+                <span style={{color:grwC(gr),fontSize:10,fontWeight:700}}>{grwT(gr)}</span>
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* ── 목표 셀: 입력 + 전년비 ── */}
+        {hasTgt&&(
+          <div style={{
+            background:C.blue+"0d",border:`1px solid ${C.blue}33`,borderRadius:7,
+            padding:"5px 8px",display:"flex",flexDirection:"column",gap:2,
+          }}>
+            <div style={{display:"flex",alignItems:"center",gap:6}}>
+              <span style={{color:C.blue,fontSize:9,fontWeight:700,width:20,flexShrink:0}}>목표</span>
+              <NumInput value={row.auto?tRow[row.key]:tD[sk(mi)]?.[row.key]}
+                readOnly={row.auto} color={C.blue}
+                onChange={v=>setVal("target",mi,row.key,v)}/>
+              <span style={{color:C.muted,fontSize:9,flexShrink:0}}>억</span>
+            </div>
+            <div style={{display:"flex",gap:8,paddingLeft:26}}>
+              {tgr!==null&&(
+                <span style={{display:"flex",alignItems:"center",gap:2}}>
+                  <span style={{color:C.muted,fontSize:8}}>전년비</span>
+                  <span style={{color:grwC(tgr),fontSize:10,fontWeight:700}}>{grwT(tgr)}</span>
+                </span>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -1010,12 +1039,14 @@ function InputTab({data,setData,mode,onSave,saveState,hasUnsaved}){
                     onBlur={e=>{e.target.style.borderColor=C.b1;e.target.style.boxShadow="none";}}
                   />
                   {/* 달성률 (실적) */}
-                  {ar&&<div style={{textAlign:"right",marginTop:2}}>
-                    <span style={{color:pctC(ar),fontSize:9,fontWeight:700}}>{ar}%</span>
+                  {ar&&<div style={{display:"flex",justifyContent:"flex-end",alignItems:"center",gap:2,marginTop:2}}>
+                    <span style={{color:C.muted,fontSize:8}}>달성</span>
+                    <span style={{color:pctC(ar),fontSize:9,fontWeight:800}}>{ar}%</span>
                   </div>}
                   {/* 성장률 */}
-                  {(gr||tgr)&&<div style={{textAlign:"right",marginTop:1}}>
-                    <span style={{color:grwC(gr||tgr),fontSize:9}}>{grwT(gr||tgr)}</span>
+                  {(gr||tgr)&&<div style={{display:"flex",justifyContent:"flex-end",alignItems:"center",gap:2,marginTop:1}}>
+                    <span style={{color:C.muted,fontSize:8}}>전년비</span>
+                    <span style={{color:grwC(gr||tgr),fontSize:9,fontWeight:700}}>{grwT(gr||tgr)}</span>
                   </div>}
                 </div>
               )}
@@ -1028,16 +1059,22 @@ function InputTab({data,setData,mode,onSave,saveState,hasUnsaved}){
           position:"sticky",right:0,
           background:C.card,zIndex:1,borderLeft:`1px solid ${C.b1}`,
         }}>
-          <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:1}}>
+          <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2}}>
             <span title={fmtD(yearSum)}
               style={{color:row.gc||clr,fontWeight:700,fontSize:11,cursor:"default",whiteSpace:"nowrap"}}>
               {yearSum>0?Math.round(yearSum).toLocaleString()+"억":"─"}
             </span>
             {yearAr&&(
-              <span style={{color:pctC(yearAr),fontSize:9,fontWeight:700}}>{yearAr}%</span>
+              <span style={{display:"flex",alignItems:"center",gap:2}}>
+                <span style={{color:C.muted,fontSize:8}}>누계달성</span>
+                <span style={{color:pctC(yearAr),fontSize:10,fontWeight:800}}>{yearAr}%</span>
+              </span>
             )}
             {(yearGr||tgtGr)&&(
-              <span style={{color:grwC(yearGr||tgtGr),fontSize:9}}>{grwT(yearGr||tgtGr)}</span>
+              <span style={{display:"flex",alignItems:"center",gap:2}}>
+                <span style={{color:C.muted,fontSize:8}}>누계성장</span>
+                <span style={{color:grwC(yearGr||tgtGr),fontSize:10,fontWeight:700}}>{grwT(yearGr||tgtGr)}</span>
+              </span>
             )}
           </div>
         </td>
@@ -1192,10 +1229,10 @@ function InputTab({data,setData,mode,onSave,saveState,hasUnsaved}){
                     {MONTHS.map(m=>(
                       <BulkTH key={m} c={C.muted2}>
                         <div>{m}</div>
-                        {hasTgt&&<div style={{color:C.muted,fontSize:8,fontWeight:400}}>달성/성장</div>}
+                        {hasTgt&&<div style={{fontSize:8,fontWeight:400,marginTop:1}}><span style={{color:C.teal}}>달성</span><span style={{color:C.muted}}>·</span><span style={{color:C.green}}>전년비</span></div>}
                       </BulkTH>
                     ))}
-                    <BulkTH right c={C.accent} w={100}>연합계</BulkTH>
+                    <BulkTH right c={C.accent} w={110}><div>연합계</div><div style={{fontSize:8,marginTop:1}}><span style={{color:C.teal}}>누계달성</span><span style={{color:C.muted}}>·</span><span style={{color:C.green}}>누계성장</span></div></BulkTH>
                   </tr>
                 </thead>
                 <tbody>
@@ -1240,7 +1277,7 @@ function InputTab({data,setData,mode,onSave,saveState,hasUnsaved}){
                       {MONTHS.map(m=>(
                         <BulkTH key={m} c={C.blue}>
                           <div>{m}</div>
-                          {prevYr&&<div style={{color:C.muted,fontSize:8,fontWeight:400}}>전년비</div>}
+                          {prevYr&&<div style={{fontSize:8,fontWeight:400,marginTop:1}}><span style={{color:C.green}}>전년비</span></div>}
                         </BulkTH>
                       ))}
                       <BulkTH right c={C.blue} w={100}>연합계</BulkTH>
@@ -1278,23 +1315,6 @@ function InputTab({data,setData,mode,onSave,saveState,hasUnsaved}){
             {prevYr&&<Chip c={C.muted2}>전{prevYr}년비 성장률 자동표시</Chip>}
           </div>
 
-          {/* 컬럼 헤더 */}
-          <div style={{
-            display:"grid",
-            gridTemplateColumns:"120px 1fr 1fr 48px 52px",
-            gap:8,padding:"6px 10px",
-            background:C.card2,borderRadius:8,
-            fontSize:10,fontWeight:700,color:C.muted,
-          }}>
-            <span>항목</span>
-            <span style={{textAlign:"right",color:mColor}}>실적 (억)</span>
-            <span style={{textAlign:"right",color:hasTgt?C.blue:C.muted}}>
-              {hasTgt?"목표 (억)":"(목표없음)"}
-            </span>
-            <span style={{textAlign:"right",color:C.teal}}>달성률</span>
-            <span style={{textAlign:"right",color:C.green}}>전년비</span>
-          </div>
-
           {/* 행 렌더 */}
           <div style={{
             background:C.card,border:`1px solid ${C.b1}`,borderRadius:12,
@@ -1311,43 +1331,54 @@ function InputTab({data,setData,mode,onSave,saveState,hasUnsaved}){
             ))}
           </div>
 
-          {/* 우측 사이드 합계 */}
-          <div style={{display:"grid",
-            gridTemplateColumns:isMobile?"1fr 1fr":"1fr 1fr 1fr",gap:10}}>
-            {[
-              {k:"CE",c:KC.CE},{k:"대외영업",c:KC.대외영업},
-              {k:"SAC",c:KC.SAC},{k:"뉴홈",c:KC.뉴홈},
-              {k:"B2B",c:KC.B2B},{k:"휴대폰",c:KC.휴대폰},
-            ].map(({k,c})=>{
-              const pv=pRow[k], tv=hasTgt?tRow[k]:0;
-              const a=hasTgt&&gNum(tv)>0?pct(pv,tv):null;
-              return (
-                <div key={k} style={{
-                  background:C.card2,border:`1px solid ${c}30`,
-                  borderRadius:10,padding:"10px 14px",
-                  borderTop:`2px solid ${c}`,
-                }}>
-                  <div style={{color:C.muted,fontSize:10,marginBottom:3}}>{k} · {MONTHS[mi]}</div>
-                  <div title={fmtD(pv)} style={{color:C.text,fontSize:18,fontWeight:900,
-                    letterSpacing:"-0.03em",cursor:"default"}}>
-                    {gNum(pv)>0?Math.round(gNum(pv)).toLocaleString():
-                      <span style={{color:C.muted}}>─</span>}
-                    {gNum(pv)>0&&<span style={{fontSize:10,color:C.muted2,marginLeft:2}}>억</span>}
+          {/* ── 파트별 도넛 카드 (전체 12개) ── */}
+          <div style={{
+            background:C.card,border:`1px solid ${C.b1}`,borderRadius:12,padding:16,
+            boxShadow:"0 4px 16px rgba(0,0,0,.2)",
+          }}>
+            <div style={{color:C.text,fontWeight:800,fontSize:12,marginBottom:12}}>
+              {MONTHS[mi]} 파트별 현황
+              <span style={{color:C.muted,fontWeight:400,fontSize:10,marginLeft:8}}>
+                도넛: 달성률 · 수치: 실적/목표
+              </span>
+            </div>
+            <div style={{display:"grid",
+              gridTemplateColumns:isMobile?"repeat(3,1fr)":"repeat(6,1fr)",gap:10}}>
+              {INPUT_ROWS.map(row=>{
+                const pv=gNum(pRow[row.key]);
+                const tv=hasTgt?gNum(tRow[row.key]):0;
+                const ppv=prevP?gNum(ppRow[row.key]):0;
+                const ar=hasTgt&&tv>0?pct(pv,tv):null;
+                const gr=prevP&&ppv>0?grw(pv,ppv):null;
+                const color=row.gc||C.muted2;
+                return (
+                  <div key={row.key} style={{
+                    background:C.card2,border:`1px solid ${color}25`,
+                    borderRadius:10,padding:"10px 6px",
+                    display:"flex",flexDirection:"column",alignItems:"center",gap:4,
+                    borderTop:`2px solid ${color}`,
+                  }}>
+                    <DonutChart pct={ar||0} color={color} size={60} stroke={7}/>
+                    <div style={{display:"flex",alignItems:"center",gap:3}}>
+                      <span style={{color,fontSize:10,fontWeight:700}}>{row.key}</span>
+                      {row.auto&&<span style={{color:color,fontSize:7,background:color+"20",
+                        borderRadius:2,padding:"1px 3px",fontWeight:700}}>자동</span>}
+                    </div>
+                    <div style={{textAlign:"center"}}>
+                      <span style={{color:C.text,fontSize:12,fontWeight:800}}>
+                        {pv>0?Math.round(pv).toLocaleString():<span style={{color:C.muted}}>─</span>}
+                      </span>
+                      {tv>0&&<span style={{color:C.muted,fontSize:9}}>/{Math.round(tv)}억</span>}
+                    </div>
+                    {gr!==null&&(
+                      <span style={{color:grwC(gr),fontSize:9,fontWeight:700}}>
+                        전년비 {grwT(gr)}
+                      </span>
+                    )}
                   </div>
-                  {hasTgt&&gNum(tv)>0&&(
-                    <>
-                      <div style={{color:C.blue,fontSize:10,marginTop:2}}>
-                        목표 {Math.round(gNum(tv)).toLocaleString()}억
-                      </div>
-                      {a&&<ProgressBar pct={a} color={c} h={3}/>}
-                      {a&&<div style={{color:pctC(a),fontSize:10,fontWeight:700,marginTop:2}}>
-                        {a}%
-                      </div>}
-                    </>
-                  )}
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
