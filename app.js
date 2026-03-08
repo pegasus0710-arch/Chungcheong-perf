@@ -7,7 +7,7 @@
    반응형: 모바일/태블릿/PC 지원
    ═══════════════════════════════════════════════ */
 const { useState, useEffect, useCallback, useMemo, useRef } = React;
-const APP_VER = "v16";
+const APP_VER = "v17";
 
 // ─── 상수 ─────────────────────────────────────
 const MONTHS   = ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"];
@@ -195,27 +195,37 @@ function DonutChart({pct:p, color, size=72, stroke=8, label, sub}){
   const textColor = n>=100?C.green:n>=80?C.orange:C.red;
   return (
     <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
-      <svg width={size} height={size} style={{transform:"rotate(-90deg)"}}>
-        <circle cx={cx} cy={cy} r={r} fill="none" stroke={C.b1} strokeWidth={stroke}/>
-        <circle cx={cx} cy={cy} r={r} fill="none" stroke={n===0?C.b2:color}
-          strokeWidth={stroke} strokeLinecap="round"
-          strokeDasharray={`${fill} ${circ}`}
-          style={{transition:"stroke-dasharray .6s ease",filter:`drop-shadow(0 0 4px ${color}80)`}}/>
-        {n>100&&(
-          <circle cx={cx} cy={cy} r={r} fill="none" stroke={C.orange}
-            strokeWidth={stroke} strokeLinecap="round" opacity={.5}
-            strokeDasharray={`${(n-100)/100*circ} ${circ}`}
-            strokeDashoffset={-(fill)}/>
-        )}
-      </svg>
-      <div style={{marginTop:-size/2-4,height:size/2,display:"flex",flexDirection:"column",
-        alignItems:"center",justifyContent:"center",pointerEvents:"none"}}>
-        <div style={{color:n===0?C.muted:textColor,fontSize:size<60?11:13,fontWeight:900,
-          letterSpacing:"-0.03em"}}>
-          {n===0?"─":n.toFixed(0)+"%"}
+      {/* SVG + 중앙 텍스트 절대 위치 오버레이 */}
+      <div style={{position:"relative",width:size,height:size}}>
+        <svg width={size} height={size} style={{transform:"rotate(-90deg)",display:"block"}}>
+          <circle cx={cx} cy={cy} r={r} fill="none" stroke={C.b1} strokeWidth={stroke}/>
+          <circle cx={cx} cy={cy} r={r} fill="none" stroke={n===0?C.b2:color}
+            strokeWidth={stroke} strokeLinecap="round"
+            strokeDasharray={`${fill} ${circ}`}
+            style={{transition:"stroke-dasharray .6s ease",filter:`drop-shadow(0 0 4px ${color}80)`}}/>
+          {n>100&&(
+            <circle cx={cx} cy={cy} r={r} fill="none" stroke={C.orange}
+              strokeWidth={stroke} strokeLinecap="round" opacity={.5}
+              strokeDasharray={`${(n-100)/100*circ} ${circ}`}
+              strokeDashoffset={-(fill)}/>
+          )}
+        </svg>
+        {/* 숫자 — 절대 중앙 */}
+        <div style={{
+          position:"absolute",inset:0,
+          display:"flex",alignItems:"center",justifyContent:"center",
+          pointerEvents:"none",
+        }}>
+          <span style={{
+            color:n===0?C.muted:textColor,
+            fontSize:size<56?10:size<72?12:14,
+            fontWeight:900,letterSpacing:"-0.03em",
+          }}>
+            {n===0?"─":n.toFixed(0)+"%"}
+          </span>
         </div>
       </div>
-      {label&&<div style={{color:C.muted2,fontSize:10,fontWeight:700,textAlign:"center"}}>{label}</div>}
+      {label&&<div style={{color:C.muted2,fontSize:10,fontWeight:700,textAlign:"center",lineHeight:1.2}}>{label}</div>}
       {sub&&<div style={{color:C.muted,fontSize:9,textAlign:"center"}}>{sub}</div>}
     </div>
   );
@@ -356,7 +366,7 @@ function CeShareBar({data, emi}){
 }
 
 function Dashboard({data,mode}){
-  const [selKey,setSelKey] = useState("CE");
+  const [selKey,setSelKey] = useState("대외영업");
   const isMobile = useIsMobile();
   const mColor = C[mode];
 
@@ -386,7 +396,7 @@ function Dashboard({data,mode}){
   };
 
   // 주요 항목 달성률
-  const DONUT_KEYS = ["CE","대외영업","SAC","B2B","혼수","뉴홈"];
+  const DONUT_KEYS = ["대외영업","혼수","뉴홈","입주","이사","SAC","거주중","B2B","SMB","농협","휴대폰"];
 
   // 월별 + 월평균
   const sel_monthly = mArr(p26,selKey).map((v,i)=>i<=emi?v:null);
@@ -419,12 +429,11 @@ function Dashboard({data,mode}){
               입력 기준월 : {MONTHS[emi]} · 판매/매출 전환 가능 · hover 시 소수점 표시
             </div>
           </div>
-          {/* 핵심 지표 3개 */}
+          {/* 핵심 지표 2개 */}
           <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
             {[
               {k:"CE",      label:"CE 누계",      color:KC.CE},
               {k:"대외영업", label:"대외영업 누계", color:KC.대외영업},
-              {k:"SAC",     label:"SAC 누계",     color:KC.SAC},
             ].map(({k,label,color})=>{
               const v26=ytd(p26,k), v25=ytd(p25,k), vt=ytd(t26,k);
               const gr=grw(v26,v25), ar=pct(v26,vt);
@@ -459,59 +468,35 @@ function Dashboard({data,mode}){
 
       {/* ── 파트 선택 + 도넛 달성률 ── */}
       <div style={{display:"grid",
-        gridTemplateColumns:isMobile?"1fr":`260px 1fr`,gap:14}}>
+        gridTemplateColumns:isMobile?"1fr":`320px 1fr`,gap:14}}>
 
         {/* 도넛 달성률 패널 */}
         <div style={{background:C.card2,border:`1px solid ${C.b1}`,borderRadius:14,padding:18,
           boxShadow:"0 4px 20px rgba(0,0,0,.2)"}}>
-          <div style={{color:C.text,fontWeight:800,fontSize:13,marginBottom:4}}>목표 달성률</div>
-          <div style={{color:C.muted,fontSize:10,marginBottom:14}}>
-            {MONTHS[emi]} 누계 기준
+          <div style={{color:C.text,fontWeight:800,fontSize:13,marginBottom:2}}>목표 달성률</div>
+          <div style={{color:C.muted,fontSize:10,marginBottom:12}}>
+            {MONTHS[emi]} 누계 기준 · 항목 클릭 시 차트 전환
           </div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>
+          {/* 11개 항목: 4-4-3 그리드 */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>
             {DONUT_KEYS.map(k=>{
               const pv=ytd(p26,k), tv=ytd(t26,k), ar=pct(pv,tv);
               const color=KC[k]||C.accent;
               return (
                 <div key={k} onClick={()=>setSelKey(k)}
-                  style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4,
-                    cursor:"pointer",padding:"6px 4px",borderRadius:8,
-                    background:selKey===k?color+"15":"transparent",
-                    border:`1px solid ${selKey===k?color+"60":"transparent"}`,
-                    transition:"all .2s"}}>
-                  <DonutChart pct={ar} color={color} size={60} stroke={6}/>
+                  style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3,
+                    cursor:"pointer",padding:"8px 4px",borderRadius:8,
+                    background:selKey===k?color+"18":"rgba(255,255,255,.02)",
+                    border:`1px solid ${selKey===k?color+"70":C.b1}`,
+                    transition:"all .18s",
+                    boxShadow:selKey===k?`0 0 10px ${color}25`:"none"}}>
+                  <DonutChart pct={ar} color={color} size={56} stroke={6}/>
                   <div style={{color:selKey===k?color:C.muted2,fontSize:10,fontWeight:700,
-                    textAlign:"center"}}>{k}</div>
-                  <div style={{color:C.muted,fontSize:9,textAlign:"center"}}>
-                    {pv>0?Math.round(pv).toLocaleString()+"/":""}{tv>0?Math.round(tv).toLocaleString()+"억":"-"}
+                    textAlign:"center",marginTop:1}}>{k}</div>
+                  <div style={{color:C.muted,fontSize:9,textAlign:"center",lineHeight:1.3}}>
+                    {pv>0?Math.round(pv).toLocaleString():"─"}
+                    {tv>0&&<span style={{color:C.b2}}>/{Math.round(tv).toLocaleString()}억</span>}
                   </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* 전체 항목 미니 리스트 */}
-          <div style={{marginTop:14,paddingTop:12,borderTop:`1px solid ${C.b1}`}}>
-            <div style={{color:C.muted,fontSize:10,fontWeight:700,marginBottom:8}}>전체 항목</div>
-            {ALL_KEYS.map(k=>{
-              const pv=ytd(p26,k),tv=ytd(t26,k),ar=pct(pv,tv);
-              const color=KC[k]||C.muted2;
-              return (
-                <div key={k} onClick={()=>setSelKey(k)}
-                  style={{display:"flex",alignItems:"center",gap:6,padding:"4px 6px",
-                    borderRadius:6,cursor:"pointer",marginBottom:2,
-                    background:selKey===k?color+"12":"transparent"}}>
-                  <div style={{width:5,height:5,borderRadius:"50%",background:color,flexShrink:0}}/>
-                  <span style={{color:selKey===k?color:C.muted2,fontSize:10,flex:1,fontWeight:selKey===k?700:400}}>
-                    {k}
-                  </span>
-                  <span style={{color:C.muted,fontSize:10}}>
-                    {pv>0?Math.round(pv).toLocaleString():"-"}억
-                  </span>
-                  <span style={{color:ar?pctC(ar):C.muted,fontSize:10,fontWeight:700,
-                    minWidth:36,textAlign:"right"}}>
-                    {ar?ar+"%":"-"}
-                  </span>
                 </div>
               );
             })}
@@ -600,81 +585,151 @@ function Dashboard({data,mode}){
         </div>
       </div>
 
-      {/* ── 하단 2열: 전년비 성장 + CE 비중 ── */}
+      {/* ── 하단 2열: 전년비 성장 카드 + CE 비중 ── */}
       <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:14}}>
 
-        {/* 전년비 성장 표 */}
+        {/* 전년비 성장률 — 카드 그리드 방식 */}
         <div style={{background:C.card2,border:`1px solid ${C.b1}`,borderRadius:14,padding:18}}>
-          <div style={{color:C.text,fontWeight:800,fontSize:13,marginBottom:4}}>전년비 성장률</div>
+          <div style={{color:C.text,fontWeight:800,fontSize:13,marginBottom:2}}>전년비 성장률</div>
           <div style={{color:C.muted,fontSize:10,marginBottom:14}}>26년 vs 25년 · {MONTHS[emi]} 누계</div>
-          {ALL_KEYS.map(k=>{
-            const v26=ytd(p26,k),v25=ytd(p25,k),gr=grw(v26,v25);
-            const barW=v26>0&&v25>0?Math.min(Math.abs(gNum(gr))/30,1)*100:0;
-            return (
-              <div key={k} style={{marginBottom:8}}>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:3,alignItems:"center"}}>
-                  <div style={{display:"flex",alignItems:"center",gap:6}}>
-                    <div style={{width:6,height:6,borderRadius:2,background:KC[k]||C.muted2,flexShrink:0}}/>
-                    <span style={{color:C.muted2,fontSize:11}}>{k}</span>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+            {["대외영업","혼수","뉴홈","입주","이사","SAC","거주중","B2B","SMB","농협","휴대폰"].map(k=>{
+              const v26=ytd(p26,k),v25=ytd(p25,k),gr=grw(v26,v25);
+              const color=KC[k]||C.muted2;
+              const isUp=gNum(gr)>0, isDown=gNum(gr)<0;
+              return (
+                <div key={k} style={{
+                  background:isUp?"rgba(45,212,136,.06)":isDown?"rgba(240,112,112,.06)":"rgba(255,255,255,.02)",
+                  border:`1px solid ${isUp?C.green+"30":isDown?C.red+"30":C.b1}`,
+                  borderRadius:10,padding:"10px 12px",
+                  borderLeft:`3px solid ${color}`,
+                }}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                    <div style={{display:"flex",alignItems:"center",gap:5}}>
+                      <div style={{width:5,height:5,borderRadius:"50%",background:color}}/>
+                      <span style={{color:C.muted2,fontSize:11,fontWeight:600}}>{k}</span>
+                    </div>
+                    <span style={{
+                      color:gr?grwC(gr):C.muted,fontWeight:900,fontSize:13,
+                    }}>{gr?grwT(gr):"─"}</span>
                   </div>
-                  <div style={{display:"flex",gap:10,alignItems:"center"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
                     <span style={{color:C.muted,fontSize:10}}>
-                      <span title={fmtD(v25)}>{v25>0?Math.round(v25).toLocaleString():"-"}</span>
-                      <span style={{color:C.b2,margin:"0 4px"}}>→</span>
-                      <span title={fmtD(v26)} style={{color:C.text}}>{v26>0?Math.round(v26).toLocaleString():"-"}</span>
+                      {v25>0?Math.round(v25).toLocaleString():"─"}억
                     </span>
-                    <span style={{color:gr?grwC(gr):C.muted,fontWeight:700,fontSize:11,
-                      minWidth:52,textAlign:"right"}}>
-                      {gr?grwT(gr):"-"}
+                    <span style={{color:C.muted,fontSize:10}}>→</span>
+                    <span style={{color:C.text,fontSize:12,fontWeight:700}}>
+                      {v26>0?Math.round(v26).toLocaleString():"─"}억
                     </span>
                   </div>
                 </div>
-                {gr&&(
-                  <div style={{height:2,background:C.b1,borderRadius:1,overflow:"hidden"}}>
-                    <div style={{height:"100%",width:`${barW}%`,
-                      background:grwC(gr),borderRadius:1,transition:"width .4s"}}/>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* CE 비중 */}
-        <div style={{background:C.card2,border:`1px solid ${C.b1}`,borderRadius:14,padding:18}}>
-          <div style={{color:C.text,fontWeight:800,fontSize:13,marginBottom:4}}>CE 비중 분석</div>
-          <div style={{color:C.muted,fontSize:10,marginBottom:14}}>
-            {MONTHS[emi]} 누계 · CE = {ytd(p26,"CE")>0?Math.round(ytd(p26,"CE")).toLocaleString()+"억":"─"}
+              );
+            })}
           </div>
-          {ytd(p26,"CE")>0
-            ? <CeShareBar data={p26} emi={emi}/>
-            : <div style={{color:C.muted,fontSize:12,padding:"30px 0",textAlign:"center"}}>CE 데이터를 입력해주세요</div>
-          }
-
-          {/* 도넛 CE비중 추가 — 대외영업 vs CE */}
-          {ytd(p26,"CE")>0&&(
-            <div style={{marginTop:16,paddingTop:14,borderTop:`1px solid ${C.b1}`,
-              display:"flex",gap:16,justifyContent:"center",flexWrap:"wrap"}}>
-              {[
-                {k:"대외영업(폰제외)",v:ytd(p26,"대외영업")-ytd(p26,"휴대폰"),c:KC.대외영업},
-                {k:"SAC",v:ytd(p26,"SAC"),c:KC.SAC},
-                {k:"B2B",v:ytd(p26,"B2B"),c:KC.B2B},
-              ].map(({k,v,c})=>{
-                const ce=ytd(p26,"CE");
-                const s=ce?(v/ce*100).toFixed(1):0;
-                return (
-                  <div key={k} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
-                    <DonutChart pct={parseFloat(s)} color={c} size={58} stroke={6}/>
-                    <div style={{color:KC[k]||c,fontSize:10,fontWeight:700}}>{k}</div>
-                    <div style={{color:C.muted,fontSize:9}}>
-                      {Math.round(v).toLocaleString()}억 / {s}%
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </div>
+
+        {/* CE 비중 — 혼수,뉴홈,입주,이사,B2B(폰제외),농협,SAC,거주중 */}
+        {(()=>{
+          const ce=ytd(p26,"CE");
+          // 범례에 표시할 항목 (요청대로)
+          const LEGEND_PARTS=[
+            {k:"혼수",  c:"#f5b942"},
+            {k:"뉴홈",  c:"#2dd488"},
+            {k:"입주",  c:"#5ee8b0"},
+            {k:"이사",  c:"#80f0de"},
+            {k:"B2B(폰제외)",c:"#f58f42",vk:"B2B_ex"},
+            {k:"농협",  c:"#f5e090"},
+            {k:"SAC",   c:"#d97af5"},
+            {k:"거주중",c:"#b87af5"},
+          ];
+          // 바 차트에 표시할 항목 (요청대로: 혼수,입주,이사,거주중,SMB,농협)
+          const BAR_PARTS=[
+            {k:"혼수",  c:"#f5b942"},
+            {k:"입주",  c:"#5ee8b0"},
+            {k:"이사",  c:"#80f0de"},
+            {k:"거주중",c:"#b87af5"},
+            {k:"SMB",   c:"#f5c090"},
+            {k:"농협",  c:"#f5e090"},
+          ];
+          const getV=k=>{
+            if(k==="B2B_ex") return ytd(p26,"B2B")-ytd(p26,"휴대폰");
+            return ytd(p26,k);
+          };
+          const legendVals=LEGEND_PARTS.map(p=>({...p,v:getV(p.vk||p.k)}));
+          const barVals=BAR_PARTS.map(p=>({...p,v:ytd(p26,p.k)}));
+          return (
+            <div style={{background:C.card2,border:`1px solid ${C.b1}`,borderRadius:14,padding:18}}>
+              <div style={{color:C.text,fontWeight:800,fontSize:13,marginBottom:2}}>CE 비중 분석</div>
+              <div style={{color:C.muted,fontSize:10,marginBottom:12}}>
+                {MONTHS[emi]} 누계 · CE = {ce>0?Math.round(ce).toLocaleString()+"억":"─"}
+              </div>
+              {ce>0 ? (<>
+                {/* 스택 바: 혼수,입주,이사,거주중,SMB,농협 */}
+                <div style={{marginBottom:10}}>
+                  <div style={{color:C.muted,fontSize:9,marginBottom:4}}>
+                    구성 비중 (혼수·입주·이사·거주중·SMB·농협)
+                  </div>
+                  <div style={{display:"flex",borderRadius:7,overflow:"hidden",height:24,gap:1}}>
+                    {barVals.map(p=>p.v>0&&(
+                      <div key={p.k} title={`${p.k}: ${(p.v/ce*100).toFixed(1)}%`}
+                        style={{flex:p.v/ce,background:p.c,display:"flex",alignItems:"center",
+                          justifyContent:"center",minWidth:(p.v/ce*100)>5?undefined:0,
+                          transition:"flex .4s",boxShadow:`inset 0 1px 0 rgba(255,255,255,.12)`}}>
+                        {(p.v/ce*100)>5&&<span style={{color:"rgba(0,0,0,.75)",fontSize:9,fontWeight:700}}>
+                          {(p.v/ce*100).toFixed(0)}%
+                        </span>}
+                      </div>
+                    ))}
+                    {/* 나머지(기타) */}
+                    <div style={{flex:1,background:C.b2,opacity:.4}}/>
+                  </div>
+                </div>
+                {/* 범례: 2열 그리드 */}
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"7px 14px"}}>
+                  {legendVals.map(p=>{
+                    const s=ce?(p.v/ce*100):0;
+                    return (
+                      <div key={p.k} style={{display:"flex",alignItems:"center",gap:7}}>
+                        <div style={{width:9,height:9,borderRadius:3,background:p.c,flexShrink:0}}/>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
+                            <span style={{color:C.muted2,fontSize:11}}>{p.k}</span>
+                            <span style={{color:p.c,fontWeight:800,fontSize:12}}>{s.toFixed(1)}%</span>
+                          </div>
+                          <div style={{color:C.muted,fontSize:9}}>{Math.round(p.v).toLocaleString()}억</div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {/* 하단 핵심 도넛 3개 */}
+                <div style={{marginTop:14,paddingTop:12,borderTop:`1px solid ${C.b1}`,
+                  display:"flex",gap:12,justifyContent:"space-around",flexWrap:"wrap"}}>
+                  {[
+                    {k:"대외영업",v:ytd(p26,"대외영업")-ytd(p26,"휴대폰"),c:KC.대외영업,lbl:"대외(폰제외)"},
+                    {k:"SAC",     v:ytd(p26,"SAC"),c:KC.SAC,lbl:"SAC"},
+                    {k:"B2B",     v:ytd(p26,"B2B")-ytd(p26,"휴대폰"),c:KC.B2B,lbl:"B2B(폰제외)"},
+                  ].map(({k,v,c,lbl})=>{
+                    const s=ce?(v/ce*100).toFixed(1):0;
+                    return (
+                      <div key={k} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+                        <DonutChart pct={parseFloat(s)} color={c} size={60} stroke={7}/>
+                        <div style={{color:c,fontSize:10,fontWeight:700}}>{lbl}</div>
+                        <div style={{color:C.muted,fontSize:9,textAlign:"center"}}>
+                          {Math.round(v).toLocaleString()}억 · {s}%
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>) : (
+                <div style={{color:C.muted,fontSize:12,padding:"40px 0",textAlign:"center"}}>
+                  CE 데이터를 입력해주세요
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
     </div>
@@ -1638,7 +1693,7 @@ function Analysis({data,mode}){
 //  앱 루트
 // ═══════════════════════════════════════════════
 function App(){
-  const [tab,       setTab]       = useState("input");
+  const [tab,       setTab]       = useState("dashboard");
   const [mode,      setMode]      = useState("매출");
   const [data,      setData]      = useState(initData);
   const [saveState, setSaveState] = useState("idle");
