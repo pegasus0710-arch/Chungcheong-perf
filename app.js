@@ -7,7 +7,7 @@
    반응형: 모바일/태블릿/PC 지원
    ═══════════════════════════════════════════════ */
 const { useState, useEffect, useCallback, useMemo, useRef } = React;
-const APP_VER = "v2.9";
+const APP_VER = "v3.0";
 
 // ─── 상수 ─────────────────────────────────────
 const MONTHS   = ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"];
@@ -670,32 +670,19 @@ function Dashboard({data,mode}){
 
           {/* ── 목표 잔여 현황 ── */}
           {(()=>{
+            try {
             const selPv  = ytd(p26,selKey);
             const selTv  = ytd(t26,selKey);
+            if(selTv<=0) return null;
             const selRem = Math.max(selTv - selPv, 0);
             const selAr  = pct(selPv, selTv);
             const color  = KC[selKey]||C.accent;
-            // 남은 월 수 (emi+1 ~ 11)
-            const remainMonths = 11 - emi; // emi는 0-indexed, 12월=11
+            const remainMonths = 11 - emi;
             const needPerMonth = remainMonths>0&&selRem>0
               ? Math.ceil(selRem / remainMonths) : 0;
-            // 연간 목표 (12개월 전체)
-            const annualTv = (() => {
-              let s=0;
-              for(let i=0;i<12;i++) s+=gNum(fullRow(t26?.[sk(i)])?.[selKey]);
-              return s;
-            })();
-            const annualPv = (() => {
-              let s=0;
-              for(let i=0;i<12;i++) s+=gNum(fullRow(p26?.[sk(i)])?.[selKey]);
-              return s;
-            })();
-            const annualRem = Math.max(annualTv - annualPv, 0);
-            const annualAr  = pct(annualPv, annualTv);
-            if(selTv<=0) return null;
             const pctNum = selAr ? parseFloat(selAr) : 0;
             const r=28, stroke=6, circ=2*Math.PI*r;
-            const filled=Math.min(pctNum/100,1)*circ;
+            const filled = isNaN(pctNum) ? 0 : Math.min(pctNum/100,1)*circ;
             return (
               <div style={{marginTop:14,padding:"14px 10px",
                 background:"rgba(0,0,0,.2)",borderRadius:10,
@@ -706,7 +693,7 @@ function Dashboard({data,mode}){
                   {selKey} · 목표 잔여 현황
                 </div>
                 <div style={{display:"flex",gap:12,alignItems:"center"}}>
-                  {/* 원형 도넛 — 연간 달성률 */}
+                  {/* 원형 도넛 — 누계 달성률 */}
                   <div style={{position:"relative",flexShrink:0}}>
                     <svg width={70} height={70}>
                       <circle cx={35} cy={35} r={r}
@@ -729,7 +716,6 @@ function Dashboard({data,mode}){
                   </div>
                   {/* 수치 상세 */}
                   <div style={{flex:1,display:"flex",flexDirection:"column",gap:6}}>
-                    {/* 실적 / 목표 */}
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                       <span style={{color:C.muted,fontSize:9}}>실적</span>
                       <span style={{color:color,fontSize:12,fontWeight:800}}>
@@ -742,34 +728,38 @@ function Dashboard({data,mode}){
                         {Math.round(selTv).toLocaleString()}억
                       </span>
                     </div>
-                    {/* 구분선 */}
                     <div style={{height:1,background:C.b1}}/>
-                    {/* 잔여 */}
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                       <span style={{color:C.muted,fontSize:9}}>잔여</span>
                       <span style={{color:selRem>0?C.orange:C.green,fontSize:12,fontWeight:900}}>
                         {selRem>0?"-"+Math.round(selRem).toLocaleString()+"억":"✓ 달성"}
                       </span>
                     </div>
-                    {/* 월평균 필요 */}
-                    {needPerMonth>0&&(
+                    {needPerMonth>0&&remainMonths>0&&(
                       <div style={{background:`${C.orange}15`,borderRadius:6,
                         padding:"5px 8px",border:`1px solid ${C.orange}30`}}>
                         <div style={{color:C.muted,fontSize:8,marginBottom:1}}>
-                          잔여 {remainMonths}개월 · 월 {Math.round(needPerMonth).toLocaleString()}억 필요
+                          잔여 {remainMonths}개월
                         </div>
                         <div style={{display:"flex",alignItems:"baseline",gap:3}}>
                           <span style={{color:C.orange,fontSize:13,fontWeight:900}}>
                             {Math.round(needPerMonth).toLocaleString()}억
                           </span>
-                          <span style={{color:C.muted,fontSize:9}}>/월 평균 달성 시 목표 도달</span>
+                          <span style={{color:C.muted,fontSize:9}}>/월 필요</span>
                         </div>
+                      </div>
+                    )}
+                    {selRem===0&&selPv>0&&(
+                      <div style={{background:`${C.green}15`,borderRadius:6,
+                        padding:"5px 8px",border:`1px solid ${C.green}30`,textAlign:"center"}}>
+                        <span style={{color:C.green,fontSize:11,fontWeight:800}}>🎯 목표 달성!</span>
                       </div>
                     )}
                   </div>
                 </div>
               </div>
             );
+            } catch(e) { return null; }
           })()}
         </div>
 
@@ -2937,6 +2927,8 @@ function App(){
     <div style={{minHeight:"100vh",background:C.bg,color:C.text,
       fontFamily:"'Noto Sans KR','Apple SD Gothic Neo',sans-serif"}}>
 
+      {/* 판매/매출 선택 + 헤더 — 상단 고정 */}
+      <div style={{position:"sticky",top:0,zIndex:300,background:C.bg}}>
       {/* 판매/매출 선택 */}
       <div style={{background:"#040c17",borderBottom:`1px solid ${C.b1}`,padding:"0 16px"}}>
         <div style={{maxWidth:1360,margin:"0 auto",display:"flex",alignItems:"center",
@@ -2966,8 +2958,7 @@ function App(){
       </div>
 
       {/* 헤더 */}
-      <div style={{background:C.surf,borderBottom:`1px solid ${C.b1}`,
-        padding:"0 16px",position:"sticky",top:38,zIndex:200}}>
+      <div style={{background:C.surf,borderBottom:`1px solid ${C.b1}`,padding:"0 16px"}}>
         <div style={{maxWidth:1360,margin:"0 auto",display:"flex",alignItems:"center",
           height:46,gap:isMobile?12:20}}>
           <div style={{display:"flex",alignItems:"center",gap:7,flexShrink:0}}>
@@ -3013,6 +3004,8 @@ function App(){
             </div>
           )}
         </div>
+      </div>
+      {/* ── sticky 헤더 끝 ── */}
       </div>
 
       {/* 콘텐츠 */}
