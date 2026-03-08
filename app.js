@@ -7,7 +7,7 @@
    반응형: 모바일/태블릿/PC 지원
    ═══════════════════════════════════════════════ */
 const { useState, useEffect, useCallback, useMemo, useRef } = React;
-const APP_VER = "v14";
+const APP_VER = "v15";
 
 // ─── 상수 ─────────────────────────────────────
 const MONTHS   = ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"];
@@ -685,25 +685,133 @@ function Dashboard({data,mode}){
 // ═══════════════════════════════════════════════
 //  실적 입력
 // ═══════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════
+//  실적 입력 v14
+//  - 카테고리 계층 명확 구분
+//  - 일괄: 실적 전체 블록 + 목표 전체 블록 분리
+//  - 달성률·성장률 자동 표시
+// ═══════════════════════════════════════════════
+
+/* ── 입력 행 정의 (계층 구조) ── */
+const INPUT_ROWS = [
+  // key, level(0=top/1=mid/2=sub), isAuto, groupStart, groupColor
+  {key:"CE",       lv:0, auto:false, gs:true,  gc:KC.CE},
+  {key:"대외영업",  lv:0, auto:true,  gs:true,  gc:KC.대외영업},
+  {key:"혼수",     lv:1, auto:false, gs:false, gc:KC.혼수},
+  {key:"뉴홈",     lv:1, auto:true,  gs:true,  gc:KC.뉴홈},
+  {key:"입주",     lv:2, auto:false, gs:false, gc:KC.입주},
+  {key:"이사",     lv:2, auto:false, gs:false, gc:KC.이사},
+  {key:"SAC",      lv:1, auto:false, gs:true,  gc:KC.SAC},
+  {key:"거주중",   lv:2, auto:false, gs:false, gc:KC.거주중},
+  {key:"B2B",      lv:1, auto:true,  gs:true,  gc:KC.B2B},
+  {key:"SMB",      lv:2, auto:false, gs:false, gc:KC.SMB},
+  {key:"농협",     lv:2, auto:false, gs:false, gc:KC.농협},
+  {key:"휴대폰",   lv:1, auto:false, gs:false, gc:KC.휴대폰},
+];
+
+/* ── 카테고리 그룹 배경색 ── */
+const GROUP_BG = {
+  CE:    "rgba(124,131,245,.06)",
+  대외영업:"rgba(56,182,245,.05)",
+  뉴홈:  "rgba(45,212,136,.05)",
+  SAC:   "rgba(217,122,245,.05)",
+  B2B:   "rgba(245,143,66,.05)",
+};
+
+/* ── 단일 입력 셀 ── */
+function NumInput({value, onChange, color, readOnly=false, placeholder="0"}){
+  const [focused,setFocused]=useState(false);
+  if(readOnly) return (
+    <div style={{
+      padding:"5px 8px",textAlign:"right",fontSize:12,fontWeight:700,
+      color:color||C.muted2,background:C.bg+"88",borderRadius:5,
+      border:`1px solid ${color||C.b1}33`,minWidth:60,
+    }}>
+      {gNum(value)>0?Math.round(gNum(value)).toLocaleString():
+        <span style={{color:C.b2,fontWeight:400}}>AUTO</span>}
+    </div>
+  );
+  return (
+    <input type="number" step="any" min="0" placeholder={placeholder}
+      value={value??""} onChange={e=>onChange(e.target.value)}
+      onFocus={()=>setFocused(true)} onBlur={()=>setFocused(false)}
+      style={{
+        width:"100%",minWidth:56,background:focused?C.bg:C.bg+"cc",
+        border:`1px solid ${focused?(color||C.accent):C.b1}`,
+        boxShadow:focused?`0 0 0 2px ${(color||C.accent)}22`:"none",
+        borderRadius:5,padding:"5px 8px",color:color||C.text,
+        fontSize:12,outline:"none",textAlign:"right",fontFamily:"inherit",
+        WebkitAppearance:"none",MozAppearance:"textfield",
+        transition:"border-color .15s, box-shadow .15s",
+      }}
+    />
+  );
+}
+
+/* ── 행 레이블 ── */
+function RowLabel({row, indent=true}){
+  const lpad = indent ? row.lv*14 : 0;
+  return (
+    <div style={{
+      display:"flex",alignItems:"center",gap:5,
+      paddingLeft:lpad+(row.lv>0&&indent?8:0),
+      whiteSpace:"nowrap",
+    }}>
+      {row.lv>0&&indent&&(
+        <span style={{color:C.b2,fontSize:10,flexShrink:0}}>└</span>
+      )}
+      <span style={{
+        fontSize:11,fontWeight:row.lv===0?800:row.lv===1?600:400,
+        color:row.auto?(row.gc||C.muted2):(row.lv===0?(row.gc||C.text):(row.gc||C.muted2)),
+      }}>
+        {row.key}
+      </span>
+      {row.auto&&(
+        <span style={{
+          fontSize:8,color:row.gc||C.accent,background:(row.gc||C.accent)+"18",
+          borderRadius:3,padding:"1px 4px",fontWeight:700,letterSpacing:".04em",
+        }}>자동</span>
+      )}
+    </div>
+  );
+}
+
+/* ── 그룹 구분선 ── */
+function GroupDivider({color}){
+  return (
+    <tr>
+      <td colSpan={100} style={{padding:0,height:4,
+        background:`linear-gradient(90deg, ${color||C.b1}40 0%, transparent 100%)`}}/>
+    </tr>
+  );
+}
+
 function InputTab({data,setData,mode,onSave,saveState,hasUnsaved}){
-  const [yr,setYr]             = useState("26");
-  const [mi,setMi]             = useState(0);
+  const [yr,setYr]               = useState("26");
+  const [mi,setMi]               = useState(0);
   const [inputMode,setInputMode] = useState("single");
   const isMobile = useIsMobile();
 
-  const hasTgt=yr!=="24";
-  const mColor=C[mode];
-  const mD=data[yr]?.[mode]||emptyMode(hasTgt);
-  const pD=mD.perf  ||emptyM();
-  const tD=mD.target||emptyM();
+  const hasTgt = yr !== "24";
+  const mColor = C[mode];
 
+  const mD  = data[yr]?.[mode] || emptyMode(hasTgt);
+  const pD  = mD.perf   || emptyM();
+  const tD  = mD.target || emptyM();
+
+  // 전년 데이터
+  const prevYr = yr==="26"?"25":yr==="25"?"24":null;
+  const prevP  = prevYr ? (data[prevYr]?.[mode]?.perf || emptyM()) : null;
+
+  // Firebase 로드 후 마지막 입력월 자동 선택
   useEffect(()=>{
     for(let i=11;i>=0;i--){
-      if(INP_KEYS.some(k=>gNum(pD[sk(i)]?.[k])>0)){setMi(i);return;}
+      if(INP_KEYS.some(k=>gNum(pD[sk(i)]?.[k])>0)){ setMi(i); return; }
     }
   },[yr,mode,data]);
 
-  const setVal=useCallback((type,mIdx,key,val)=>{
+  const setVal = useCallback((type,mIdx,key,val)=>{
     setData(prev=>{
       const yr_=prev[yr]||{};
       const mode_=yr_[mode]||emptyMode(hasTgt);
@@ -714,309 +822,484 @@ function InputTab({data,setData,mode,onSave,saveState,hasUnsaved}){
     });
   },[yr,mode,hasTgt,setData]);
 
-  const pRow=fullRow(pD[sk(mi)]);
-  const tRow=hasTgt?fullRow(tD[sk(mi)]):{};
-  const pYear=k=>sumM(pD,k);
-  const tYear=k=>sumM(tD,k);
+  /* 연간 합산 */
+  const pYear = k => sumM(pD,k);
+  const tYear = k => sumM(tD,k);
+  const prevYear = k => prevP ? sumM(prevP,k) : 0;
+
+  /* 월별 fullRow */
+  const pRow  = fullRow(pD[sk(mi)]);
+  const tRow  = hasTgt ? fullRow(tD[sk(mi)]) : {};
+  const ppRow = prevP  ? fullRow(prevP[sk(mi)]) : {};
+
+  /* ── 단일 월 입력용 ── */
+  const SingleRow = ({row})=>{
+    const pv=pRow[row.key], tv=tRow[row.key], ppv=ppRow[row.key];
+    const ar = hasTgt&&gNum(tv)>0 ? pct(pv,tv) : null;
+    const gr = prevP&&gNum(ppv)>0  ? grw(pv,ppv) : null;
+    const isBg = GROUP_BG[row.key];
+    return (
+      <div style={{
+        display:"grid",
+        gridTemplateColumns:"120px 1fr 1fr auto auto",
+        gap:8,alignItems:"center",
+        padding:"5px 10px",
+        background:isBg||"transparent",
+        borderRadius:row.lv===0?8:5,
+        borderLeft:row.lv===0?`3px solid ${row.gc||C.b1}`:"none",
+        marginBottom:row.gs&&row.lv===0?2:1,
+        marginTop:row.gs&&row.lv===0?6:0,
+      }}>
+        <RowLabel row={row}/>
+        {/* 실적 */}
+        <NumInput value={row.auto?pv:pD[sk(mi)]?.[row.key]}
+          readOnly={row.auto}
+          color={row.gc||mColor}
+          onChange={v=>setVal("perf",mi,row.key,v)}/>
+        {/* 목표 */}
+        {hasTgt
+          ? <NumInput value={row.auto?tRow[row.key]:tD[sk(mi)]?.[row.key]}
+              readOnly={row.auto} color={C.blue}
+              onChange={v=>setVal("target",mi,row.key,v)}/>
+          : <div/>
+        }
+        {/* 달성률 */}
+        {ar!==null
+          ? <span style={{color:pctC(ar),fontSize:11,fontWeight:700,minWidth:44,textAlign:"right"}}>
+              {ar}%
+            </span>
+          : <span style={{color:C.muted,fontSize:10,minWidth:44}}/>
+        }
+        {/* 성장률 */}
+        {gr!==null
+          ? <span style={{color:grwC(gr),fontSize:11,fontWeight:700,minWidth:48,textAlign:"right"}}>
+              {grwT(gr)}
+            </span>
+          : <span style={{minWidth:48}}/>
+        }
+      </div>
+    );
+  };
+
+  /* ── 일괄 입력 헤더 ── */
+  const BulkTH = ({c,sticky,right,children,w})=>(
+    <th style={{
+      padding:"6px 5px",textAlign:right?"right":"center",
+      color:c||C.muted,fontWeight:700,fontSize:10,whiteSpace:"nowrap",
+      ...(sticky?{position:"sticky",left:0,background:C.card,zIndex:3}:{}),
+      ...(w?{width:w,minWidth:w}:{minWidth:50}),
+    }}>{children}</th>
+  );
+
+  /* ── 일괄 입력용 데이터 행 ── */
+  const BulkDataRow = ({row, type, colorOverride})=>{
+    const d     = type==="perf" ? pD : tD;
+    const other = type==="perf" ? tD : null;
+    const clr   = colorOverride || (type==="perf"?mColor:C.blue);
+
+    // 월별 연간합계
+    const yearSum = row.auto ? sumM(d,row.key) : sumM(d,row.key);
+    const yearPrev= prevP ? sumM(prevP,row.key) : 0;
+    const yearTgt = sumM(tD,row.key);
+    const yearAr  = type==="perf"&&hasTgt&&yearTgt>0 ? pct(yearSum,yearTgt) : null;
+    const yearGr  = prevP&&yearPrev>0 ? grw(yearSum,yearPrev) : null;
+    const tgtGr   = type==="target"&&prevP&&yearPrev>0 ? grw(yearSum,yearPrev) : null;
+
+    const rowBg = type==="perf"
+      ? (GROUP_BG[row.key]||"transparent")
+      : "rgba(56,182,245,.03)";
+
+    return (
+      <tr style={{borderBottom:`1px solid ${C.b1}20`,background:rowBg}}>
+        {/* 항목명 */}
+        <td style={{
+          padding:"3px 10px",paddingLeft:8+row.lv*12,
+          position:"sticky",left:0,background:C.card,zIndex:1,
+          borderLeft:row.lv===0?`3px solid ${row.gc||C.b1}`:"none",
+        }}>
+          <RowLabel row={row} indent={true}/>
+        </td>
+        {/* 월별 셀 */}
+        {MONTHS.map((_,mi2)=>{
+          const val = row.auto
+            ? gNum(fullRow(d[sk(mi2)])[row.key])
+            : gNum(d[sk(mi2)]?.[row.key]);
+          const prevVal = prevP ? gNum(fullRow(prevP[sk(mi2)])[row.key]) : 0;
+          const tgtVal  = other ? gNum(fullRow(other[sk(mi2)])[row.key]) : 0;
+          const ar = type==="perf"&&hasTgt&&tgtVal>0 ? pct(val,tgtVal) : null;
+          const gr = type==="perf"&&prevP&&prevVal>0 ? grw(val,prevVal) : null;
+          const tgr= type==="target"&&prevP&&prevVal>0 ? grw(val,prevVal) : null;
+
+          return (
+            <td key={mi2} style={{padding:"2px 3px",verticalAlign:"middle"}}>
+              {row.auto ? (
+                <div style={{
+                  padding:"4px 6px",textAlign:"right",fontSize:10,fontWeight:700,
+                  color:row.gc||clr,background:(row.gc||clr)+"12",
+                  borderRadius:4,border:`1px solid ${row.gc||clr}22`,
+                }}>
+                  {val>0?Math.round(val).toLocaleString():<span style={{color:C.b2}}>─</span>}
+                </div>
+              ) : (
+                <div>
+                  <input type="number" step="any" min="0" placeholder="0"
+                    value={d[sk(mi2)]?.[row.key]??""}
+                    onChange={e=>setVal(type,mi2,row.key,e.target.value)}
+                    style={{
+                      width:"100%",background:C.bg,
+                      border:`1px solid ${C.b1}`,borderRadius:4,
+                      padding:"3px 5px",color:clr,fontSize:10,
+                      outline:"none",textAlign:"right",fontFamily:"inherit",
+                    }}
+                    onFocus={e=>{e.target.style.borderColor=clr;e.target.style.boxShadow=`0 0 0 2px ${clr}22`;}}
+                    onBlur={e=>{e.target.style.borderColor=C.b1;e.target.style.boxShadow="none";}}
+                  />
+                  {/* 달성률 (실적) */}
+                  {ar&&<div style={{textAlign:"right"}}>
+                    <span style={{color:pctC(ar),fontSize:8,fontWeight:700}}>{ar}%</span>
+                  </div>}
+                  {/* 성장률 */}
+                  {(gr||tgr)&&<div style={{textAlign:"right"}}>
+                    <span style={{color:grwC(gr||tgr),fontSize:8}}>{grwT(gr||tgr)}</span>
+                  </div>}
+                </div>
+              )}
+            </td>
+          );
+        })}
+        {/* 연합계 */}
+        <td style={{
+          padding:"3px 8px",textAlign:"right",
+          position:"sticky",right:0,
+          background:C.card,zIndex:1,borderLeft:`1px solid ${C.b1}`,
+        }}>
+          <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:1}}>
+            <span title={fmtD(yearSum)}
+              style={{color:row.gc||clr,fontWeight:700,fontSize:11,cursor:"default",whiteSpace:"nowrap"}}>
+              {yearSum>0?Math.round(yearSum).toLocaleString()+"억":"─"}
+            </span>
+            {yearAr&&(
+              <span style={{color:pctC(yearAr),fontSize:9,fontWeight:700}}>{yearAr}%</span>
+            )}
+            {(yearGr||tgtGr)&&(
+              <span style={{color:grwC(yearGr||tgtGr),fontSize:9}}>{grwT(yearGr||tgtGr)}</span>
+            )}
+          </div>
+        </td>
+      </tr>
+    );
+  };
+
+  /* ── 섹션 헤더행 ── */
+  const SectionHeaderRow = ({label, color, sub})=>(
+    <tr>
+      <td colSpan={100} style={{padding:"8px 12px 4px",
+        background:`linear-gradient(90deg,${color}18 0%,transparent 60%)`,
+        borderLeft:`3px solid ${color}`,borderBottom:`1px solid ${color}33`}}>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <span style={{color,fontWeight:800,fontSize:12}}>{label}</span>
+          {sub&&<span style={{color:C.muted,fontSize:10}}>{sub}</span>}
+        </div>
+      </td>
+    </tr>
+  );
 
   return (
     <div style={{display:"flex",flexDirection:"column",gap:12}}>
 
-      {/* 컨트롤 바 */}
-      <div style={{background:C.card2,border:`1px solid ${C.b1}`,borderRadius:12,
-        padding:"10px 14px",display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+      {/* ── 컨트롤 바 ── */}
+      <div style={{
+        background:`linear-gradient(135deg,${C.card2},${C.card})`,
+        border:`1px solid ${C.b1}`,borderRadius:12,
+        padding:"10px 14px",display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",
+        boxShadow:"0 4px 16px rgba(0,0,0,.2)",
+      }}>
+        {/* 연도 */}
         <div style={{display:"flex",gap:4}}>
-          {[["24","실적"],["25","실적+목표"],["26","실적+목표"]].map(([y,d])=>(
+          {[["24","실적전용"],["25","실적+목표"],["26","실적+목표"]].map(([y,d])=>(
             <button key={y} onClick={()=>setYr(y)} style={{
-              padding:"5px 10px",borderRadius:6,cursor:"pointer",fontSize:11,fontWeight:700,
+              padding:"5px 12px",borderRadius:7,cursor:"pointer",fontSize:11,fontWeight:700,
               fontFamily:"inherit",border:`1px solid ${yr===y?C.accent:C.b2}`,
-              background:yr===y?C.accent+"22":"transparent",color:yr===y?C.accent:C.muted}}>
-              {y}년<span style={{fontSize:9,opacity:.7,marginLeft:2}}>({d})</span>
+              background:yr===y?C.accent+"22":"transparent",color:yr===y?C.accent:C.muted,
+              boxShadow:yr===y?`0 0 8px ${C.accent}40`:"none",transition:"all .15s",
+            }}>
+              {y}년
+              <span style={{fontSize:9,opacity:.7,marginLeft:3}}>({d})</span>
             </button>
           ))}
         </div>
-        <div style={{display:"flex",gap:3}}>
-          {[["single","월별"],["bulk","일괄"]].map(([v,l])=>(
+
+        {/* 입력방식 */}
+        <div style={{display:"flex",gap:3,background:C.bg,borderRadius:8,padding:3}}>
+          {[["single","📅 월별"],["bulk","📊 일괄"]].map(([v,l])=>(
             <button key={v} onClick={()=>setInputMode(v)} style={{
-              padding:"5px 10px",borderRadius:6,cursor:"pointer",fontSize:11,fontWeight:700,
-              fontFamily:"inherit",border:`1px solid ${inputMode===v?C.blue:C.b1}`,
-              background:inputMode===v?C.blue+"22":"transparent",
-              color:inputMode===v?C.blue:C.muted}}>{l}</button>
+              padding:"4px 12px",borderRadius:6,cursor:"pointer",fontSize:11,fontWeight:700,
+              fontFamily:"inherit",border:"none",
+              background:inputMode===v?mColor+"22":"transparent",
+              color:inputMode===v?mColor:C.muted,
+              boxShadow:inputMode===v?`0 0 6px ${mColor}30`:"none",
+              transition:"all .15s",
+            }}>{l}</button>
           ))}
         </div>
+
+        {/* 월 탭 (월별 모드) */}
         {inputMode==="single"&&(
           <div style={{display:"flex",gap:2,flexWrap:"wrap",flex:1}}>
             {MONTHS.map((m,i)=>{
               const has=INP_KEYS.some(k=>gNum(pD[sk(i)]?.[k])>0);
               return (
                 <button key={m} onClick={()=>setMi(i)} style={{
-                  padding:"4px 7px",borderRadius:5,cursor:"pointer",fontSize:10,fontWeight:600,
-                  fontFamily:"inherit",border:`1px solid ${mi===i?mColor:has?C.green+"60":C.b1}`,
+                  padding:"4px 8px",borderRadius:5,cursor:"pointer",fontSize:10,fontWeight:600,
+                  fontFamily:"inherit",border:`1px solid ${mi===i?mColor:has?C.green+"50":C.b1}`,
                   background:mi===i?mColor+"22":"transparent",
-                  color:mi===i?mColor:has?C.green:C.muted}}>
+                  color:mi===i?mColor:has?C.green:C.muted,
+                  transition:"all .12s",
+                }}>
                   {m.replace("월","")}
+                  {has&&mi!==i&&<span style={{display:"block",width:3,height:3,borderRadius:"50%",
+                    background:C.green,margin:"0 auto",marginTop:1}}/>}
                 </button>
               );
             })}
           </div>
         )}
         {inputMode==="bulk"&&<div style={{flex:1}}/>}
+
+        {/* 저장 */}
         <button onClick={onSave} disabled={saveState==="saving"} style={{
-          padding:"7px 18px",borderRadius:7,border:"none",cursor:"pointer",
+          padding:"7px 20px",borderRadius:8,border:"none",cursor:"pointer",
           fontFamily:"inherit",fontWeight:800,fontSize:12,flexShrink:0,
-          background:saveState==="saved"?C.green:hasUnsaved?`linear-gradient(135deg,${C.accent},${C.blue})`:C.b2,
-          color:"#fff",boxShadow:hasUnsaved&&saveState==="idle"?`0 0 12px ${C.accent}50`:"none"}}>
-          {saveState==="saving"?"저장중...":saveState==="saved"?"✓완료":"💾 저장"}
+          background:saveState==="saved"?C.green
+            :hasUnsaved?`linear-gradient(135deg,${C.accent},${C.blue})`:C.b2,
+          color:"#fff",
+          boxShadow:hasUnsaved&&saveState==="idle"?`0 0 14px ${C.accent}50`:"none",
+          transition:"all .2s",
+        }}>
+          {saveState==="saving"?"저장중...":saveState==="saved"?"✓ 완료":"💾 저장"}
         </button>
       </div>
 
-      {/* 전체 일괄 입력 */}
+      {/* ══════════════════════════════════════════
+          일괄 입력 모드
+         ══════════════════════════════════════════ */}
       {inputMode==="bulk"&&(
-        <div style={{background:C.card2,border:`1px solid ${C.b1}`,borderRadius:12,padding:16,overflowX:"auto"}}>
-          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12,flexWrap:"wrap"}}>
-            <div style={{color:C.text,fontWeight:800,fontSize:13}}>
-              {yr}년 · {mode} · 전체 일괄 입력
-              <span style={{color:C.muted,fontSize:11,fontWeight:400,marginLeft:8}}>억원 (소수점 가능)</span>
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+
+          {/* 안내 배지 */}
+          <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+            <span style={{color:C.text,fontWeight:800,fontSize:14}}>
+              {yr}년 · {mode}
+            </span>
+            <div style={{display:"flex",gap:6,alignItems:"center"}}>
+              <div style={{width:8,height:8,borderRadius:2,background:mColor}}/>
+              <span style={{color:mColor,fontSize:11,fontWeight:700}}>실적</span>
             </div>
             {hasTgt&&(
-              <div style={{display:"flex",gap:8,alignItems:"center",marginLeft:"auto"}}>
-                <div style={{display:"flex",alignItems:"center",gap:4}}>
-                  <div style={{width:10,height:10,borderRadius:2,background:mColor}}/>
-                  <span style={{color:mColor,fontSize:11,fontWeight:700}}>실적 (상단)</span>
-                </div>
-                <div style={{display:"flex",alignItems:"center",gap:4}}>
-                  <div style={{width:10,height:10,borderRadius:2,background:C.blue}}/>
-                  <span style={{color:C.blue,fontSize:11,fontWeight:700}}>목표 (하단)</span>
-                </div>
-                <span style={{color:C.muted,fontSize:10}}>· 달성률 자동계산</span>
+              <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                <div style={{width:8,height:8,borderRadius:2,background:C.blue}}/>
+                <span style={{color:C.blue,fontSize:11,fontWeight:700}}>목표</span>
               </div>
             )}
+            {hasTgt&&(
+              <span style={{color:C.muted,fontSize:10}}>
+                · 셀 안 작은 숫자: 달성률(%), 전년비(▲▼)
+              </span>
+            )}
           </div>
-          <table style={{borderCollapse:"collapse",fontSize:11,tableLayout:"fixed"}}>
-            <thead>
-              <tr style={{borderBottom:`1px solid ${C.b1}`}}>
-                <th style={{padding:"5px 10px",textAlign:"left",color:C.muted,fontWeight:600,
-                  width:70,position:"sticky",left:0,background:C.card2,zIndex:2}}>항목</th>
-                {MONTHS.map(m=>(
-                  <th key={m} style={{padding:"5px 4px",textAlign:"center",color:C.muted,
-                    fontWeight:600,minWidth:hasTgt?90:56}}>{m}</th>
-                ))}
-                <th style={{padding:"5px 10px",textAlign:"right",color:C.accent,fontWeight:700,minWidth:60}}>연합계</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ROWS.filter(r=>r.inp).map(r=>(
-                <tr key={r.key} style={{borderBottom:`1px solid ${C.b1}18`}}>
-                  <td style={{padding:"3px 10px",paddingLeft:10+r.lv*10,
-                    color:KC[r.key]||C.muted2,fontWeight:r.lv===0?700:400,
-                    position:"sticky",left:0,background:C.card2,zIndex:1,whiteSpace:"nowrap",fontSize:11}}>
-                    {r.lv>0?"└ ":""}{r.key}
-                  </td>
-                  {MONTHS.map((_,mi2)=>{
-                    const pv=pD[sk(mi2)]?.[r.key]??"";
-                    const tv=hasTgt?(tD[sk(mi2)]?.[r.key]??""):null;
-                    const p=gNum(pv),t=gNum(tv??0);
-                    const a=hasTgt&&t>0?pct(p,t):null;
-                    return (
-                      <td key={mi2} style={{padding:"2px 3px",verticalAlign:"middle"}}>
-                        <div style={{display:"flex",flexDirection:"column",gap:1,alignItems:"stretch"}}>
-                          {/* 실적 입력 - 컬러 배경 */}
-                          <div style={{background:mColor+"18",borderRadius:"4px 4px 0 0",padding:"1px 2px"}}>
-                            <input type="number" step="any" min="0" placeholder="0" value={pv}
-                              onChange={e=>setVal("perf",mi2,r.key,e.target.value)}
-                              style={{width:"100%",background:"transparent",border:`1px solid ${mColor}44`,
-                                borderRadius:3,padding:"2px 4px",color:C.text,fontSize:10,
-                                outline:"none",textAlign:"right",fontFamily:"inherit"}}
-                              onFocus={e=>e.target.style.borderColor=mColor}
-                              onBlur={e=>e.target.style.borderColor=`${mColor}44`}
-                            />
-                          </div>
-                          {/* 목표 입력 - 파란 배경 */}
-                          {hasTgt&&(
-                            <div style={{background:C.blue+"18",borderRadius:"0 0 4px 4px",padding:"1px 2px"}}>
-                              <input type="number" step="any" min="0" placeholder="0" value={tv??""}
-                                onChange={e=>setVal("target",mi2,r.key,e.target.value)}
-                                style={{width:"100%",background:"transparent",border:`1px solid ${C.blue}44`,
-                                  borderRadius:3,padding:"2px 4px",color:C.blue,fontSize:10,
-                                  outline:"none",textAlign:"right",fontFamily:"inherit"}}
-                                onFocus={e=>e.target.style.borderColor=C.blue}
-                                onBlur={e=>e.target.style.borderColor=`${C.blue}44`}
-                              />
-                            </div>
-                          )}
-                          {a&&<div style={{textAlign:"center"}}>
-                            <span style={{color:pctC(a),fontSize:9,fontWeight:700}}>{a}%</span>
-                          </div>}
-                        </div>
-                      </td>
-                    );
-                  })}
-                  <td style={{padding:"3px 10px",textAlign:"right",position:"sticky",right:0,background:C.card2}}>
-                    <div style={{display:"flex",flexDirection:"column",gap:2,alignItems:"flex-end"}}>
-                      <span title={fmtD(pYear(r.key))}
-                        style={{color:KC[r.key]||C.accent,fontWeight:700,fontSize:11,cursor:"default"}}>
-                        {fmt(pYear(r.key))}억
-                      </span>
-                      {hasTgt&&tYear(r.key)>0&&(
-                        <>
-                          <span title={fmtD(tYear(r.key))}
-                            style={{color:C.blue,fontSize:10,cursor:"default"}}>
-                            목{fmt(tYear(r.key))}억
-                          </span>
-                          {pct(pYear(r.key),tYear(r.key))&&(
-                            <span style={{color:pctC(pct(pYear(r.key),tYear(r.key))),fontSize:10,fontWeight:700}}>
-                              {pct(pYear(r.key),tYear(r.key))}%
-                            </span>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+
+          {/* ── 실적 블록 ── */}
+          <div style={{
+            background:C.card,border:`1px solid ${mColor}44`,borderRadius:14,
+            overflow:"hidden",boxShadow:"0 4px 20px rgba(0,0,0,.25)",
+          }}>
+            {/* 블록 헤더 */}
+            <div style={{
+              padding:"10px 16px",
+              background:`linear-gradient(90deg,${mColor}22 0%,transparent 70%)`,
+              borderBottom:`1px solid ${mColor}33`,
+              display:"flex",alignItems:"center",gap:10,
+            }}>
+              <div style={{width:4,height:20,borderRadius:2,background:mColor,
+                boxShadow:`0 0 8px ${mColor}`}}/>
+              <span style={{color:mColor,fontWeight:900,fontSize:14}}>📊 실적 입력</span>
+              <span style={{color:C.muted,fontSize:11}}>{yr}년 · 억원 단위</span>
+              {prevYr&&<span style={{color:C.muted,fontSize:10,marginLeft:"auto"}}>
+                셀 하단: 목표달성률 · 전{prevYr}년비 성장률 자동표시
+              </span>}
+            </div>
+
+            <div style={{overflowX:"auto"}}>
+              <table style={{borderCollapse:"collapse",width:"100%",tableLayout:"fixed"}}>
+                <thead>
+                  <tr style={{background:C.card2,borderBottom:`2px solid ${C.b1}`}}>
+                    <BulkTH sticky w={110}>항목</BulkTH>
+                    {MONTHS.map(m=>(
+                      <BulkTH key={m} c={C.muted2}>
+                        <div>{m}</div>
+                        {hasTgt&&<div style={{color:C.muted,fontSize:8,fontWeight:400}}>달성/성장</div>}
+                      </BulkTH>
+                    ))}
+                    <BulkTH right c={C.accent} w={80}>연합계</BulkTH>
+                  </tr>
+                </thead>
+                <tbody>
+                  {INPUT_ROWS.map((row,ri)=>(
+                    <React.Fragment key={row.key}>
+                      {/* 그룹 시작선 */}
+                      {row.gs&&ri>0&&<GroupDivider color={row.gc}/>}
+                      <BulkDataRow row={row} type="perf"/>
+                    </React.Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* ── 목표 블록 (25/26년만) ── */}
+          {hasTgt&&(
+            <div style={{
+              background:C.card,border:`1px solid ${C.blue}44`,borderRadius:14,
+              overflow:"hidden",boxShadow:"0 4px 20px rgba(0,0,0,.25)",
+            }}>
+              <div style={{
+                padding:"10px 16px",
+                background:`linear-gradient(90deg,${C.blue}22 0%,transparent 70%)`,
+                borderBottom:`1px solid ${C.blue}33`,
+                display:"flex",alignItems:"center",gap:10,
+              }}>
+                <div style={{width:4,height:20,borderRadius:2,background:C.blue,
+                  boxShadow:`0 0 8px ${C.blue}`}}/>
+                <span style={{color:C.blue,fontWeight:900,fontSize:14}}>🎯 목표 입력</span>
+                <span style={{color:C.muted,fontSize:11}}>{yr}년 · 억원 단위</span>
+                {prevYr&&<span style={{color:C.muted,fontSize:10,marginLeft:"auto"}}>
+                  셀 하단: 전{prevYr}년실적 대비 성장률 자동표시
+                </span>}
+              </div>
+
+              <div style={{overflowX:"auto"}}>
+                <table style={{borderCollapse:"collapse",width:"100%",tableLayout:"fixed"}}>
+                  <thead>
+                    <tr style={{background:C.card2,borderBottom:`2px solid ${C.b1}`}}>
+                      <BulkTH sticky w={110}>항목</BulkTH>
+                      {MONTHS.map(m=>(
+                        <BulkTH key={m} c={C.blue}>
+                          <div>{m}</div>
+                          {prevYr&&<div style={{color:C.muted,fontSize:8,fontWeight:400}}>전년비</div>}
+                        </BulkTH>
+                      ))}
+                      <BulkTH right c={C.blue} w={80}>연합계</BulkTH>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {INPUT_ROWS.map((row,ri)=>(
+                      <React.Fragment key={row.key}>
+                        {row.gs&&ri>0&&<GroupDivider color={C.blue}/>}
+                        <BulkDataRow row={row} type="target" colorOverride={C.blue}/>
+                      </React.Fragment>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* 월별 입력 */}
+      {/* ══════════════════════════════════════════
+          월별 입력 모드
+         ══════════════════════════════════════════ */}
       {inputMode==="single"&&(
-        <div style={{display:"grid",
-          gridTemplateColumns:isMobile?"1fr":`1fr 1fr 180px`,gap:10}}>
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
 
-          {/* 실적 */}
-          <div style={{background:C.card2,border:`1px solid ${mColor}44`,borderRadius:12,
-            padding:14,borderTop:`3px solid ${mColor}`}}>
-            <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}>
-              <div style={{color:C.text,fontWeight:800,fontSize:13}}>
-                📊 실적 <span style={{color:C.muted,fontWeight:400,fontSize:11}}>· {yr}년 {MONTHS[mi]}</span>
-              </div>
-              <Chip c={mColor}>{mode}</Chip>
-            </div>
-            <div style={{display:"flex",flexDirection:"column",gap:5}}>
-              {ROWS.map(r=>!r.inp?(
-                <div key={r.key} style={{display:"flex",alignItems:"center",gap:5,
-                  paddingLeft:r.lv*14,marginTop:2}}>
-                  <div style={{height:1,flex:1,background:C.b1}}/>
-                  <span style={{color:KC[r.key]||C.muted2,fontSize:10,fontWeight:700}}>{r.key}</span>
-                  <span style={{color:C.muted,fontSize:9}}>(자동)</span>
-                  <span title={fmtD(pRow[r.key])} style={{color:KC[r.key]||C.muted2,fontSize:11,
-                    fontWeight:700,minWidth:36,textAlign:"right",cursor:"default"}}>{fmt(pRow[r.key])}</span>
-                </div>
-              ):(
-                <div key={r.key} style={{display:"flex",alignItems:"center",gap:6,paddingLeft:r.lv*14+(r.lv>0?10:0)}}>
-                  {r.lv>0&&<span style={{color:C.b2,fontSize:10,flexShrink:0}}>└</span>}
-                  <span style={{width:46,fontSize:11,flexShrink:0,fontWeight:r.bold?800:400,
-                    color:r.bold?(KC[r.key]||C.text):C.muted2}}>{r.key}</span>
-                  <input type="number" step="any" min="0" placeholder="0"
-                    value={pD[sk(mi)]?.[r.key]??""}
-                    onChange={e=>setVal("perf",mi,r.key,e.target.value)}
-                    style={{flex:1,background:C.bg,border:`1px solid ${C.b2}`,borderRadius:5,
-                      padding:"5px 7px",color:KC[r.key]||C.text,fontSize:12,outline:"none",
-                      fontFamily:"inherit",textAlign:"right",WebkitAppearance:"none",MozAppearance:"textfield"}}
-                    onFocus={e=>{e.target.style.borderColor=KC[r.key]||C.accent}}
-                    onBlur={e=>{e.target.style.borderColor=C.b2}}/>
-                  <span style={{color:C.muted,fontSize:10,width:12}}>억</span>
-                </div>
-              ))}
-            </div>
+          {/* 월 헤딩 */}
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <div style={{width:3,height:24,borderRadius:2,background:mColor}}/>
+            <span style={{color:C.text,fontWeight:800,fontSize:15}}>
+              {yr}년 {MONTHS[mi]}
+            </span>
+            <Chip c={mColor}>{mode}</Chip>
+            {hasTgt&&<Chip c={C.blue}>실적+목표</Chip>}
+            {prevYr&&<Chip c={C.muted2}>전{prevYr}년비 성장률 자동표시</Chip>}
           </div>
 
-          {/* 목표 */}
-          {hasTgt?(
-            <div style={{background:C.card2,border:`1px solid ${C.blue}44`,borderRadius:12,
-              padding:14,borderTop:`3px solid ${C.blue}`}}>
-              <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}>
-                <div style={{color:C.text,fontWeight:800,fontSize:13}}>
-                  🎯 목표 <span style={{color:C.muted,fontWeight:400,fontSize:11}}>· {yr}년 {MONTHS[mi]}</span>
-                </div>
-                <Chip c={C.blue}>목표</Chip>
-              </div>
-              <div style={{display:"flex",flexDirection:"column",gap:5}}>
-                {ROWS.map(r=>!r.inp?(
-                  <div key={r.key} style={{display:"flex",alignItems:"center",gap:5,
-                    paddingLeft:r.lv*14,marginTop:2}}>
-                    <div style={{height:1,flex:1,background:C.b1}}/>
-                    <span style={{color:KC[r.key]||C.muted2,fontSize:10,fontWeight:700}}>{r.key}</span>
-                    <span style={{color:C.muted,fontSize:9}}>(자동)</span>
-                    <span title={fmtD(tRow[r.key])} style={{color:KC[r.key]||C.muted2,fontSize:11,
-                      fontWeight:700,minWidth:36,textAlign:"right",cursor:"default"}}>{fmt(tRow[r.key])}</span>
-                  </div>
-                ):(
-                  <div key={r.key} style={{display:"flex",alignItems:"center",gap:6,paddingLeft:r.lv*14+(r.lv>0?10:0)}}>
-                    {r.lv>0&&<span style={{color:C.b2,fontSize:10,flexShrink:0}}>└</span>}
-                    <span style={{width:46,fontSize:11,flexShrink:0,fontWeight:r.bold?800:400,
-                      color:r.bold?(KC[r.key]||C.text):C.muted2}}>{r.key}</span>
-                    <input type="number" step="any" min="0" placeholder="0"
-                      value={tD[sk(mi)]?.[r.key]??""}
-                      onChange={e=>setVal("target",mi,r.key,e.target.value)}
-                      style={{flex:1,background:C.bg,border:`1px solid ${C.b2}`,borderRadius:5,
-                        padding:"5px 7px",color:C.blue,fontSize:12,outline:"none",
-                        fontFamily:"inherit",textAlign:"right",WebkitAppearance:"none",MozAppearance:"textfield"}}
-                      onFocus={e=>{e.target.style.borderColor=C.blue}}
-                      onBlur={e=>{e.target.style.borderColor=C.b2}}/>
-                    {(()=>{const p=gNum(pRow[r.key]),t=gNum(tD[sk(mi)]?.[r.key]);
-                      const a=t>0?pct(p,t):null;
-                      return a&&<span style={{color:pctC(a),fontSize:10,width:34,textAlign:"right",
-                        fontWeight:700,flexShrink:0}}>{a}%</span>;
-                    })()}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ):(
-            <div style={{background:C.card2,border:`1px solid ${C.b1}`,borderRadius:12,padding:14,
-              display:"flex",alignItems:"center",justifyContent:"center"}}>
-              <span style={{color:C.muted,fontSize:12}}>24년은 실적만 입력</span>
-            </div>
-          )}
+          {/* 컬럼 헤더 */}
+          <div style={{
+            display:"grid",
+            gridTemplateColumns:"120px 1fr 1fr 48px 52px",
+            gap:8,padding:"6px 10px",
+            background:C.card2,borderRadius:8,
+            fontSize:10,fontWeight:700,color:C.muted,
+          }}>
+            <span>항목</span>
+            <span style={{textAlign:"right",color:mColor}}>실적 (억)</span>
+            <span style={{textAlign:"right",color:hasTgt?C.blue:C.muted}}>
+              {hasTgt?"목표 (억)":"(목표없음)"}
+            </span>
+            <span style={{textAlign:"right",color:C.teal}}>달성률</span>
+            <span style={{textAlign:"right",color:C.green}}>전년비</span>
+          </div>
 
-          {/* 우측 합계 */}
-          <div style={{display:"flex",flexDirection:"column",gap:10}}>
-            <div style={{background:C.card2,border:`1px solid ${C.b1}`,borderRadius:10,padding:12}}>
-              <div style={{color:C.text,fontWeight:700,fontSize:12,marginBottom:8}}>{MONTHS[mi]} 합계</div>
-              {["CE","대외영업","뉴홈","SAC","B2B"].map(k=>{
-                const pv=pRow[k],tv=hasTgt?tRow[k]:0,a=hasTgt&&tv>0?pct(pv,tv):null;
-                return (
-                  <div key={k} style={{marginBottom:7,paddingBottom:7,borderBottom:`1px solid ${C.b1}`}}>
-                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}>
-                      <span style={{color:KC[k]||C.muted2,fontSize:10,fontWeight:700}}>{k}</span>
-                      <span title={fmtD(pv)} style={{color:C.text,fontSize:12,fontWeight:800,cursor:"default"}}>
-                        {fmt(pv)}
-                      </span>
-                    </div>
-                    {a&&<div style={{display:"flex",justifyContent:"space-between"}}>
-                      <span style={{color:C.muted,fontSize:9}}>목표달성</span>
-                      <span style={{color:pctC(a),fontSize:10,fontWeight:700}}>{a}%</span>
-                    </div>}
-                    {tv>0&&<ProgressBar pct={a} color={KC[k]||C.accent} h={2}/>}
+          {/* 행 렌더 */}
+          <div style={{
+            background:C.card,border:`1px solid ${C.b1}`,borderRadius:12,
+            padding:"6px 0",boxShadow:"0 4px 16px rgba(0,0,0,.2)",overflow:"hidden",
+          }}>
+            {INPUT_ROWS.map((row,ri)=>(
+              <React.Fragment key={row.key}>
+                {row.gs&&ri>0&&(
+                  <div style={{height:6,
+                    background:`linear-gradient(90deg,${row.gc||C.b1}20 0%,transparent 100%)`}}/>
+                )}
+                <SingleRow row={row}/>
+              </React.Fragment>
+            ))}
+          </div>
+
+          {/* 우측 사이드 합계 */}
+          <div style={{display:"grid",
+            gridTemplateColumns:isMobile?"1fr 1fr":"1fr 1fr 1fr",gap:10}}>
+            {[
+              {k:"CE",c:KC.CE},{k:"대외영업",c:KC.대외영업},
+              {k:"SAC",c:KC.SAC},{k:"뉴홈",c:KC.뉴홈},
+              {k:"B2B",c:KC.B2B},{k:"휴대폰",c:KC.휴대폰},
+            ].map(({k,c})=>{
+              const pv=pRow[k], tv=hasTgt?tRow[k]:0;
+              const a=hasTgt&&gNum(tv)>0?pct(pv,tv):null;
+              return (
+                <div key={k} style={{
+                  background:C.card2,border:`1px solid ${c}30`,
+                  borderRadius:10,padding:"10px 14px",
+                  borderTop:`2px solid ${c}`,
+                }}>
+                  <div style={{color:C.muted,fontSize:10,marginBottom:3}}>{k} · {MONTHS[mi]}</div>
+                  <div title={fmtD(pv)} style={{color:C.text,fontSize:18,fontWeight:900,
+                    letterSpacing:"-0.03em",cursor:"default"}}>
+                    {gNum(pv)>0?Math.round(gNum(pv)).toLocaleString():
+                      <span style={{color:C.muted}}>─</span>}
+                    {gNum(pv)>0&&<span style={{fontSize:10,color:C.muted2,marginLeft:2}}>억</span>}
                   </div>
-                );
-              })}
-            </div>
-            <div style={{background:C.card2,border:`1px solid ${C.b1}`,borderRadius:10,padding:12}}>
-              <div style={{color:C.text,fontWeight:700,fontSize:12,marginBottom:8}}>{yr}년 누계</div>
-              {["CE","대외영업","뉴홈","SAC","B2B"].map(k=>{
-                const pv=pYear(k),tv=hasTgt?tYear(k):0,a=hasTgt&&tv>0?pct(pv,tv):null;
-                return (
-                  <div key={k} style={{marginBottom:6}}>
-                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}>
-                      <span style={{color:KC[k]||C.muted2,fontSize:10}}>{k}</span>
-                      <span title={fmtD(pv)} style={{color:KC[k]||C.text,fontSize:11,fontWeight:700,cursor:"default"}}>
-                        {fmt(pv)}억
-                      </span>
-                    </div>
-                    {tv>0&&<ProgressBar pct={a} color={KC[k]||C.accent} h={2}/>}
-                  </div>
-                );
-              })}
-            </div>
+                  {hasTgt&&gNum(tv)>0&&(
+                    <>
+                      <div style={{color:C.blue,fontSize:10,marginTop:2}}>
+                        목표 {Math.round(gNum(tv)).toLocaleString()}억
+                      </div>
+                      {a&&<ProgressBar pct={a} color={c} h={3}/>}
+                      {a&&<div style={{color:pctC(a),fontSize:10,fontWeight:700,marginTop:2}}>
+                        {a}%
+                      </div>}
+                    </>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
     </div>
   );
 }
+
 
 // ═══════════════════════════════════════════════
 //  실적 분석
