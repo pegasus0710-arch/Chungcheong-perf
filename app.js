@@ -7,7 +7,7 @@
    반응형: 모바일/태블릿/PC 지원
    ═══════════════════════════════════════════════ */
 const { useState, useEffect, useCallback, useMemo, useRef } = React;
-const APP_VER = "v19";
+const APP_VER = "v20";
 
 // ─── 상수 ─────────────────────────────────────
 const MONTHS   = ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"];
@@ -232,7 +232,8 @@ function DonutChart({pct:p, color, size=72, stroke=8, label, sub}){
 }
 
 /* ── 부드러운 SVG 라인 차트 (그리드+라벨 포함) ── */
-function RichLineChart({series, labels, h=160, yUnit="억", showAvg=false}){
+function RichLineChart({series, labels, h=160, showAvg=false}){
+  const [tooltip, setTooltip] = useState(null); // {x,y,items:[{label,v,color}]}
   const W=600, H=h, PL=36, PR=10, PT=12, PB=20;
   const iW=W-PL-PR, iH=H-PT-PB;
   const allV = series.flatMap(s=>s.data.map(gNum)).filter(v=>v>0);
@@ -241,7 +242,7 @@ function RichLineChart({series, labels, h=160, yUnit="억", showAvg=false}){
       <span style={{color:C.muted,fontSize:11}}>데이터 없음</span>
     </div>
   );
-  const maxV = Math.max(...allV)*1.1;
+  const maxV = Math.max(...allV)*1.12;
   const cx = i => PL + (i/(labels.length-1||1))*iW;
   const cy = v => PT + (1-gNum(v)/maxV)*iH;
   const smooth = pts => pts.reduce((p,pt,i)=>{
@@ -251,69 +252,130 @@ function RichLineChart({series, labels, h=160, yUnit="억", showAvg=false}){
     return `${p} C${prev.x+cpx},${prev.y} ${pt.x-cpx},${pt.y} ${pt.x},${pt.y}`;
   },"");
   const ticks = 4;
+
+  // 각 시리즈 렌더용
+  const seriesData = series.map(s=>({
+    ...s,
+    pts:s.data.map((v,i)=>({x:cx(i),y:cy(v),v:gNum(v)})),
+  }));
+
+  // 마우스 위치로 가장 가까운 X 인덱스
+  const svgRef = React.useRef(null);
+  const handleMouseMove = e => {
+    if(!svgRef.current) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const svgX = (e.clientX - rect.left) / rect.width * W;
+    // 가장 가까운 라벨 인덱스
+    let best=0, bestD=Infinity;
+    labels.forEach((_,i)=>{ const d=Math.abs(cx(i)-svgX); if(d<bestD){bestD=d;best=i;} });
+    const items = series.map(s=>({
+      label:s.tooltipLabel||s.label||"",
+      v:gNum(s.data[best]),
+      color:s.color,
+    })).filter(it=>it.v>0);
+    if(items.length===0){setTooltip(null);return;}
+    // tooltip position in % of container
+    const tx=(e.clientX-rect.left)/rect.width*100;
+    const ty=(e.clientY-rect.top)/rect.height*100;
+    setTooltip({mi:best,tx,ty,items});
+  };
+
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} style={{width:"100%",height:h}} preserveAspectRatio="xMinYMid meet">
-      {/* 그리드 */}
-      {Array.from({length:ticks+1},(_,i)=>{
-        const v=maxV*(ticks-i)/ticks;
-        const y=cy(v);
-        return (
-          <g key={i}>
-            <line x1={PL} y1={y} x2={W-PR} y2={y} stroke={C.b1} strokeWidth={.5}/>
-            <text x={PL-3} y={y+3} fill={C.muted} fontSize={8} textAnchor="end">
-              {Math.round(v)>0?Math.round(v):""}
-            </text>
-          </g>
-        );
-      })}
-      {/* X 라벨 */}
-      {labels.map((l,i)=>(
-        <text key={i} x={cx(i)} y={H} fill={C.muted} fontSize={8} textAnchor="middle">
-          {l.replace("월","")}
-        </text>
-      ))}
-      {/* 시리즈 */}
-      {series.map((s,si)=>{
-        const pts=s.data.map((v,i)=>({x:cx(i),y:cy(v),v:gNum(v)}));
-        const activePts=pts.filter(p=>p.v>0);
-        if(activePts.length===0) return null;
-        const d=smooth(activePts);
-        const avg=activePts.reduce((a,p)=>a+p.v,0)/activePts.length;
-        const avgY=cy(avg);
-        const fillPath=`${d} L${activePts[activePts.length-1].x},${PT+iH} L${activePts[0].x},${PT+iH} Z`;
-        return (
-          <g key={si}>
-            {s.fill&&<path d={fillPath} fill={s.color} opacity={.08}/>}
-            <path d={d} fill="none" stroke={s.color} strokeWidth={s.bold?2.5:1.8}
-              strokeLinejoin="round" strokeLinecap="round"
-              strokeDasharray={s.dash?"6,3":undefined} opacity={s.op||1}/>
-            {/* 데이터 포인트 */}
-            {activePts.map((p,i)=>(
-              <g key={i}>
-                <circle cx={p.x} cy={p.y} r={s.bold?3.5:2.5} fill={s.color}
-                  stroke={C.bg} strokeWidth={1.5} opacity={s.op||1}/>
-                {s.showVal&&(
-                  <text x={p.x} y={p.y-7} fill={s.color} fontSize={8} textAnchor="middle" fontWeight="700">
-                    {Math.round(p.v)}
+    <div style={{position:"relative"}} onMouseLeave={()=>setTooltip(null)}>
+      <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} style={{width:"100%",height:h,cursor:"crosshair"}}
+        preserveAspectRatio="xMinYMid meet" onMouseMove={handleMouseMove}>
+        {/* 그리드 */}
+        {Array.from({length:ticks+1},(_,i)=>{
+          const v=maxV*(ticks-i)/ticks;
+          const y=cy(v);
+          return (
+            <g key={i}>
+              <line x1={PL} y1={y} x2={W-PR} y2={y} stroke={C.b1} strokeWidth={.5}/>
+              <text x={PL-3} y={y+3} fill={C.muted} fontSize={8} textAnchor="end">
+                {Math.round(v)>0?Math.round(v):""}
+              </text>
+            </g>
+          );
+        })}
+        {/* X 라벨 */}
+        {labels.map((l,i)=>(
+          <text key={i} x={cx(i)} y={H} fill={C.muted} fontSize={8} textAnchor="middle">
+            {l.replace("월","")}
+          </text>
+        ))}
+        {/* 세로 호버 가이드 */}
+        {tooltip&&(
+          <line x1={cx(tooltip.mi)} y1={PT} x2={cx(tooltip.mi)} y2={PT+iH}
+            stroke="rgba(255,255,255,.15)" strokeWidth={1} strokeDasharray="3,2"/>
+        )}
+        {/* 시리즈 */}
+        {seriesData.map((s,si)=>{
+          const activePts=s.pts.filter(p=>p.v>0);
+          if(activePts.length===0) return null;
+          const d=smooth(activePts);
+          const avg=activePts.reduce((a,p)=>a+p.v,0)/activePts.length;
+          const avgY=cy(avg);
+          const fillPath=`${d} L${activePts[activePts.length-1].x},${PT+iH} L${activePts[0].x},${PT+iH} Z`;
+          return (
+            <g key={si}>
+              {s.fill&&<path d={fillPath} fill={s.color} opacity={.1}/>}
+              <path d={d} fill="none" stroke={s.color}
+                strokeWidth={s.bold?3:s.medium?2:1.5}
+                strokeLinejoin="round" strokeLinecap="round"
+                strokeDasharray={s.dash?"6,3":undefined}
+                opacity={s.op||1}/>
+              {/* 포인트 */}
+              {activePts.map((p,i)=>(
+                <circle key={i} cx={p.x} cy={p.y}
+                  r={tooltip&&tooltip.mi===activePts.indexOf(p)?4.5:(s.bold?3.5:2.5)}
+                  fill={s.color} stroke={C.bg} strokeWidth={1.5} opacity={s.op||1}/>
+              ))}
+              {/* 평균선 */}
+              {showAvg&&s.bold&&(
+                <>
+                  <line x1={activePts[0].x} y1={avgY} x2={activePts[activePts.length-1].x} y2={avgY}
+                    stroke={s.color} strokeWidth={1} strokeDasharray="3,3" opacity={.4}/>
+                  <text x={activePts[activePts.length-1].x+4} y={avgY+3}
+                    fill={s.color} fontSize={8} opacity={.6}>
+                    avg {Math.round(avg)}
                   </text>
-                )}
-              </g>
-            ))}
-            {/* 평균선 */}
-            {showAvg&&s.bold&&(
-              <>
-                <line x1={activePts[0].x} y1={avgY} x2={activePts[activePts.length-1].x} y2={avgY}
-                  stroke={s.color} strokeWidth={1} strokeDasharray="3,3" opacity={.5}/>
-                <text x={activePts[activePts.length-1].x+4} y={avgY+3}
-                  fill={s.color} fontSize={8} opacity={.7}>
-                  avg {Math.round(avg)}
-                </text>
-              </>
-            )}
-          </g>
-        );
-      })}
-    </svg>
+                </>
+              )}
+            </g>
+          );
+        })}
+      </svg>
+      {/* 툴팁 오버레이 */}
+      {tooltip&&(
+        <div style={{
+          position:"absolute",
+          left:`${Math.min(tooltip.tx+2,75)}%`,
+          top:`${Math.max(tooltip.ty-10,0)}%`,
+          background:"rgba(7,16,31,.95)",
+          border:`1px solid rgba(255,255,255,.12)`,
+          borderRadius:8,padding:"8px 12px",
+          pointerEvents:"none",zIndex:10,
+          boxShadow:"0 4px 16px rgba(0,0,0,.5)",
+          minWidth:100,
+        }}>
+          <div style={{color:C.muted,fontSize:9,marginBottom:4,fontWeight:700}}>
+            {labels[tooltip.mi]}
+          </div>
+          {tooltip.items.map((it,i)=>(
+            <div key={i} style={{display:"flex",justifyContent:"space-between",
+              gap:12,alignItems:"center",marginBottom:2}}>
+              <div style={{display:"flex",alignItems:"center",gap:4}}>
+                <div style={{width:6,height:2,borderRadius:1,background:it.color}}/>
+                <span style={{color:C.muted2,fontSize:10}}>{it.label}</span>
+              </div>
+              <span style={{color:it.color,fontSize:11,fontWeight:800}}>
+                {Math.round(it.v).toLocaleString()}억
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -429,36 +491,84 @@ function Dashboard({data,mode}){
               입력 기준월 : {MONTHS[emi]} · 판매/매출 전환 가능 · hover 시 소수점 표시
             </div>
           </div>
-          {/* 핵심 지표 2개 */}
-          <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
+          {/* 핵심 지표 2개 — 상세 확장형 */}
+          <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
             {[
-              {k:"CE",      label:"CE 누계",      color:KC.CE},
-              {k:"대외영업", label:"대외영업 누계", color:KC.대외영업},
-            ].map(({k,label,color})=>{
+              {k:"CE",      label:"CE",      color:KC.CE,   showCeShare:false},
+              {k:"대외영업", label:"대외영업", color:KC.대외영업, showCeShare:true},
+            ].map(({k,label,color,showCeShare})=>{
               const v26=ytd(p26,k), v25=ytd(p25,k), vt=ytd(t26,k);
               const gr=grw(v26,v25), ar=pct(v26,vt);
+              const ceV=ytd(p26,"CE");
+              const ceShare = showCeShare&&ceV>0 ? (v26/ceV*100).toFixed(1) : null;
+              // 월평균: 입력월 수 기준
+              const mCount = emi+1;
+              const avg = mCount>0&&v26>0 ? (v26/mCount).toFixed(1) : null;
               return (
-                <div key={k} style={{background:"rgba(255,255,255,.04)",border:`1px solid ${color}30`,
-                  borderRadius:12,padding:"12px 18px",minWidth:130,
-                  borderTop:`2px solid ${color}`}}>
-                  <div style={{color:C.muted,fontSize:10,marginBottom:4}}>{label}</div>
-                  <div title={fmtD(v26)} style={{color:C.text,fontSize:20,fontWeight:900,
-                    letterSpacing:"-0.03em",cursor:"default"}}>
-                    {v26>0?Math.round(v26).toLocaleString():<span style={{color:C.muted}}>-</span>}
-                    {v26>0&&<span style={{fontSize:11,color:C.muted2,marginLeft:2}}>억</span>}
+                <div key={k} style={{
+                  background:`linear-gradient(135deg, rgba(255,255,255,.05) 0%, rgba(0,0,0,.1) 100%)`,
+                  border:`1px solid ${color}40`,
+                  borderRadius:14,padding:"14px 18px",minWidth:220,flex:1,
+                  borderTop:`3px solid ${color}`,
+                  boxShadow:`0 4px 20px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.04)`
+                }}>
+                  {/* 헤더 */}
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                    <div style={{display:"flex",alignItems:"center",gap:6}}>
+                      <div style={{width:8,height:8,borderRadius:2,background:color,
+                        boxShadow:`0 0 6px ${color}`}}/>
+                      <span style={{color:color,fontWeight:800,fontSize:12,letterSpacing:"0.04em"}}>
+                        {label} 누계
+                      </span>
+                    </div>
+                    {ceShare&&(
+                      <span style={{color:color,fontSize:10,fontWeight:700,
+                        background:color+"18",borderRadius:4,padding:"2px 6px"}}>
+                        CE의 {ceShare}%
+                      </span>
+                    )}
                   </div>
-                  <div style={{display:"flex",gap:8,marginTop:4}}>
-                    {gr&&<span style={{color:grwC(gr),fontSize:10,fontWeight:700}}>{grwT(gr)}</span>}
-                    {ar&&<span style={{color:pctC(ar),fontSize:10}}>달성 {ar}%</span>}
+
+                  {/* 실적 대형 */}
+                  <div style={{display:"flex",alignItems:"baseline",gap:4,marginBottom:8}}>
+                    <span title={fmtD(v26)} style={{color:C.text,fontSize:26,fontWeight:900,
+                      letterSpacing:"-0.04em",cursor:"default",lineHeight:1}}>
+                      {v26>0?Math.round(v26).toLocaleString():<span style={{color:C.muted,fontSize:18}}>─</span>}
+                    </span>
+                    {v26>0&&<span style={{color:C.muted2,fontSize:12}}>억</span>}
                   </div>
+
+                  {/* 프로그레스 바 */}
                   {vt>0&&(
-                    <div style={{height:2,background:"rgba(255,255,255,.08)",borderRadius:1,
-                      overflow:"hidden",marginTop:6}}>
-                      <div style={{height:"100%",width:`${Math.min(gNum(ar),100)}%`,
-                        background:color,borderRadius:1,boxShadow:`0 0 6px ${color}`,
-                        transition:"width .5s"}}/>
+                    <div style={{marginBottom:8}}>
+                      <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
+                        <span style={{color:C.muted,fontSize:9}}>목표 {Math.round(vt).toLocaleString()}억</span>
+                        <span style={{color:ar?pctC(ar):C.muted,fontSize:10,fontWeight:800}}>
+                          달성 {ar||"─"}%
+                        </span>
+                      </div>
+                      <div style={{height:5,background:"rgba(255,255,255,.08)",borderRadius:3,overflow:"hidden"}}>
+                        <div style={{height:"100%",width:`${Math.min(gNum(ar),100)}%`,
+                          background:`linear-gradient(90deg,${color},${color}aa)`,
+                          borderRadius:3,boxShadow:`0 0 8px ${color}60`,transition:"width .6s"}}/>
+                      </div>
                     </div>
                   )}
+
+                  {/* 하단 3개 지표 */}
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>
+                    {[
+                      {lbl:"전년실적", val:v25>0?Math.round(v25).toLocaleString()+"억":"─", c:C.muted2},
+                      {lbl:"전년비",   val:gr?grwT(gr):"─", c:gr?grwC(gr):C.muted},
+                      {lbl:"월평균",   val:avg?parseFloat(avg).toLocaleString()+"억":"─", c:C.orange},
+                    ].map(({lbl,val,c})=>(
+                      <div key={lbl} style={{background:"rgba(0,0,0,.2)",borderRadius:6,padding:"5px 6px",
+                        textAlign:"center"}}>
+                        <div style={{color:C.muted,fontSize:8,marginBottom:2}}>{lbl}</div>
+                        <div style={{color:c,fontSize:11,fontWeight:700,lineHeight:1}}>{val}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               );
             })}
@@ -543,9 +653,9 @@ function Dashboard({data,mode}){
               </div>
             </div>
             <RichLineChart h={140} showAvg={true} series={[
-              {data:mArr(p25,selKey).map((v,i)=>i<=emi?v:null),color:C.accent,op:.6},
-              {data:mArr(p26,selKey).map((v,i)=>i<=emi?v:null),color:mColor,bold:true,fill:true,showVal:true},
-              {data:mArr(t26,selKey).map((v,i)=>i<=emi?v:null),color:C.orange,dash:true,op:.7},
+              {data:mArr(p25,selKey).map((v,i)=>i<=emi?v:null),color:"#a78bfa",op:.7,tooltipLabel:"25년"},
+              {data:mArr(p26,selKey).map((v,i)=>i<=emi?v:null),color:mColor,bold:true,fill:true,tooltipLabel:"26년"},
+              {data:mArr(t26,selKey).map((v,i)=>i<=emi?v:null),color:C.orange,dash:true,op:.7,tooltipLabel:"목표"},
             ]} labels={MONTHS}/>
           </div>
 
@@ -561,8 +671,8 @@ function Dashboard({data,mode}){
               <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
                 {[
                   {l:`26년 누계`,v:ytd(p26,selKey),c:mColor,b:true},
-                  {l:`25년 누계`,v:ytd(p25,selKey),c:C.accent,b:false},
-                  {l:`24년 누계`,v:ytd(p24,selKey),c:C.muted2,b:false},
+                  {l:`25년 누계`,v:ytd(p25,selKey),c:"#a78bfa",b:false},
+                  {l:`24년 누계`,v:ytd(p24,selKey),c:"#fbbf24",b:false},
                 ].map(({l,v,c,b})=>(
                   <div key={l} style={{display:"flex",alignItems:"center",gap:5}}>
                     <div style={{width:10,height:3,borderRadius:2,background:c}}/>
@@ -577,9 +687,9 @@ function Dashboard({data,mode}){
               </div>
             </div>
             <RichLineChart h={130} series={[
-              {data:sel_cum24.map((v,i)=>i<=emi?(v||0):null),color:C.muted2,op:.5,showVal:false},
-              {data:sel_cum25.map((v,i)=>i<=emi?(v||0):null),color:C.accent,op:.8,showVal:false},
-              {data:sel_cum26.map((v,i)=>i<=emi?(v||0):null),color:mColor,bold:true,fill:true,showVal:true},
+              {data:sel_cum24.map((v,i)=>i<=emi?(v||0):null),color:"#fbbf24",op:.85,medium:true,tooltipLabel:"24년"},
+              {data:sel_cum25.map((v,i)=>i<=emi?(v||0):null),color:"#a78bfa",op:.9,medium:true,tooltipLabel:"25년"},
+              {data:sel_cum26.map((v,i)=>i<=emi?(v||0):null),color:mColor,bold:true,fill:true,tooltipLabel:"26년"},
             ]} labels={MONTHS}/>
           </div>
         </div>
@@ -588,141 +698,148 @@ function Dashboard({data,mode}){
       {/* ── 하단 2열: 전년비 성장 카드 + CE 비중 ── */}
       <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:14}}>
 
-        {/* 전년비 성장률 — 카드 그리드 방식 */}
+        {/* 전년비 성장률 — 수평 막대 그래프 */}
         <div style={{background:C.card2,border:`1px solid ${C.b1}`,borderRadius:14,padding:18}}>
           <div style={{color:C.text,fontWeight:800,fontSize:13,marginBottom:2}}>전년비 성장률</div>
-          <div style={{color:C.muted,fontSize:10,marginBottom:14}}>26년 vs 25년 · {MONTHS[emi]} 누계</div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-            {["대외영업","혼수","뉴홈","입주","이사","SAC","거주중","B2B","SMB","농협","휴대폰"].map(k=>{
-              const v26=ytd(p26,k),v25=ytd(p25,k),gr=grw(v26,v25);
-              const color=KC[k]||C.muted2;
-              const isUp=gNum(gr)>0, isDown=gNum(gr)<0;
-              return (
-                <div key={k} style={{
-                  background:isUp?"rgba(45,212,136,.06)":isDown?"rgba(240,112,112,.06)":"rgba(255,255,255,.02)",
-                  border:`1px solid ${isUp?C.green+"30":isDown?C.red+"30":C.b1}`,
-                  borderRadius:10,padding:"10px 12px",
-                  borderLeft:`3px solid ${color}`,
-                }}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-                    <div style={{display:"flex",alignItems:"center",gap:5}}>
-                      <div style={{width:5,height:5,borderRadius:"50%",background:color}}/>
-                      <span style={{color:C.muted2,fontSize:11,fontWeight:600}}>{k}</span>
+          <div style={{color:C.muted,fontSize:10,marginBottom:16}}>26년 vs 25년 · {MONTHS[emi]} 누계</div>
+          {(()=>{
+            const PARTS = ["대외영업","혼수","뉴홈","입주","이사","SAC","거주중","B2B","SMB","농협","휴대폰"];
+            const rows = PARTS.map(k=>{
+              const v26=ytd(p26,k), v25=ytd(p25,k), gr=grw(v26,v25);
+              return {k, v26, v25, gr, color:KC[k]||C.muted2};
+            });
+            // 최대 절댓값 기준으로 바 너비 계산
+            const maxAbs = Math.max(...rows.map(r=>Math.abs(gNum(r.gr))), 50);
+            return (
+              <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                {rows.map(({k,v26,v25,gr,color})=>{
+                  const pct = gNum(gr);
+                  const barW = Math.min(Math.abs(pct)/maxAbs*100, 100);
+                  const isUp = pct>0, isDown = pct<0, isFlat = pct===0&&v26>0;
+                  return (
+                    <div key={k}>
+                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3}}>
+                        {/* 항목명 */}
+                        <div style={{display:"flex",alignItems:"center",gap:5,width:62,flexShrink:0}}>
+                          <div style={{width:7,height:7,borderRadius:2,background:color,flexShrink:0}}/>
+                          <span style={{color:C.muted2,fontSize:11,fontWeight:600,
+                            whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{k}</span>
+                        </div>
+                        {/* 수치 */}
+                        <div style={{display:"flex",alignItems:"center",gap:4,width:90,flexShrink:0}}>
+                          <span style={{color:C.muted,fontSize:9,whiteSpace:"nowrap"}}>
+                            {v25>0?Math.round(v25)+"억":"─"}
+                          </span>
+                          <span style={{color:C.b2,fontSize:8}}>→</span>
+                          <span style={{color:C.text,fontSize:11,fontWeight:700,whiteSpace:"nowrap"}}>
+                            {v26>0?Math.round(v26)+"억":"─"}
+                          </span>
+                        </div>
+                        {/* 막대 + 퍼센트 */}
+                        <div style={{flex:1,position:"relative",height:18,
+                          background:"rgba(255,255,255,.03)",borderRadius:4,overflow:"hidden"}}>
+                          {(isUp||isDown||isFlat)&&(
+                            <div style={{
+                              position:"absolute",left:0,top:0,bottom:0,
+                              width:`${barW}%`,minWidth:barW>0?3:0,
+                              background:isUp?`linear-gradient(90deg,${C.green}80,${C.green}cc)`:
+                                isDown?`linear-gradient(90deg,${C.red}80,${C.red}cc)`:
+                                `linear-gradient(90deg,${C.muted}40,${C.muted}60)`,
+                              borderRadius:4,
+                              transition:"width .5s ease",
+                              boxShadow:isUp?`0 0 8px ${C.green}40`:isDown?`0 0 8px ${C.red}40`:"none",
+                            }}/>
+                          )}
+                          <div style={{position:"absolute",inset:0,display:"flex",
+                            alignItems:"center",paddingLeft:6}}>
+                            <span style={{
+                              color:gr?grwC(gr):C.muted,fontSize:11,fontWeight:900,
+                              textShadow:"0 1px 3px rgba(0,0,0,.8)",
+                            }}>
+                              {gr?grwT(gr):v26>0?"─0%":"─"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <span style={{
-                      color:gr?grwC(gr):C.muted,fontWeight:900,fontSize:13,
-                    }}>{gr?grwT(gr):"─"}</span>
-                  </div>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
-                    <span style={{color:C.muted,fontSize:10}}>
-                      {v25>0?Math.round(v25).toLocaleString():"─"}억
-                    </span>
-                    <span style={{color:C.muted,fontSize:10}}>→</span>
-                    <span style={{color:C.text,fontSize:12,fontWeight:700}}>
-                      {v26>0?Math.round(v26).toLocaleString():"─"}억
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
 
-        {/* CE 비중 — 혼수,뉴홈,입주,이사,B2B(폰제외),농협,SAC,거주중 */}
+        {/* CE 비중 — 파트순서 기준 높은 비중 → 낮은 비중 가로 막대 */}
         {(()=>{
           const ce=ytd(p26,"CE");
-          // 범례에 표시할 항목 (요청대로)
-          const LEGEND_PARTS=[
-            {k:"혼수",  c:"#f5b942"},
-            {k:"뉴홈",  c:"#2dd488"},
-            {k:"입주",  c:"#5ee8b0"},
-            {k:"이사",  c:"#80f0de"},
-            {k:"B2B(폰제외)",c:"#f58f42",vk:"B2B_ex"},
-            {k:"농협",  c:"#f5e090"},
-            {k:"SAC",   c:"#d97af5"},
-            {k:"거주중",c:"#b87af5"},
+          // 파트 순서 (ALL_KEYS에서 CE 제외)
+          const PARTS=[
+            {k:"대외영업", c:KC.대외영업},
+            {k:"혼수",    c:KC.혼수},
+            {k:"뉴홈",    c:KC.뉴홈},
+            {k:"입주",    c:KC.입주},
+            {k:"이사",    c:KC.이사},
+            {k:"SAC",     c:KC.SAC},
+            {k:"거주중",  c:KC.거주중},
+            {k:"B2B",     c:KC.B2B},
+            {k:"SMB",     c:KC.SMB},
+            {k:"농협",    c:KC.농협},
+            {k:"휴대폰",  c:KC.휴대폰},
           ];
-          // 바 차트에 표시할 항목 (요청대로: 혼수,입주,이사,거주중,SMB,농협)
-          const BAR_PARTS=[
-            {k:"혼수",  c:"#f5b942"},
-            {k:"입주",  c:"#5ee8b0"},
-            {k:"이사",  c:"#80f0de"},
-            {k:"거주중",c:"#b87af5"},
-            {k:"SMB",   c:"#f5c090"},
-            {k:"농협",  c:"#f5e090"},
-          ];
-          const getV=k=>{
-            if(k==="B2B_ex") return ytd(p26,"B2B")-ytd(p26,"휴대폰");
-            return ytd(p26,k);
-          };
-          const legendVals=LEGEND_PARTS.map(p=>({...p,v:getV(p.vk||p.k)}));
-          const barVals=BAR_PARTS.map(p=>({...p,v:ytd(p26,p.k)}));
+          const rows = PARTS
+            .map(p=>({...p, v:ytd(p26,p.k)}))
+            .sort((a,b)=>b.v-a.v); // 높은 비중순 정렬
+          const maxV = rows[0]?.v || 1;
           return (
             <div style={{background:C.card2,border:`1px solid ${C.b1}`,borderRadius:14,padding:18}}>
               <div style={{color:C.text,fontWeight:800,fontSize:13,marginBottom:2}}>CE 비중 분석</div>
-              <div style={{color:C.muted,fontSize:10,marginBottom:12}}>
+              <div style={{color:C.muted,fontSize:10,marginBottom:14}}>
                 {MONTHS[emi]} 누계 · CE = {ce>0?Math.round(ce).toLocaleString()+"억":"─"}
+                <span style={{marginLeft:8,color:C.muted}}>│ 비중 높은 순</span>
               </div>
-              {ce>0 ? (<>
-                {/* 스택 바: 혼수,입주,이사,거주중,SMB,농협 */}
-                <div style={{marginBottom:10}}>
-                  <div style={{color:C.muted,fontSize:9,marginBottom:4}}>
-                    구성 비중 (혼수·입주·이사·거주중·SMB·농협)
-                  </div>
-                  <div style={{display:"flex",borderRadius:7,overflow:"hidden",height:24,gap:1}}>
-                    {barVals.map(p=>p.v>0&&(
-                      <div key={p.k} title={`${p.k}: ${(p.v/ce*100).toFixed(1)}%`}
-                        style={{flex:p.v/ce,background:p.c,display:"flex",alignItems:"center",
-                          justifyContent:"center",minWidth:(p.v/ce*100)>5?undefined:0,
-                          transition:"flex .4s",boxShadow:`inset 0 1px 0 rgba(255,255,255,.12)`}}>
-                        {(p.v/ce*100)>5&&<span style={{color:"rgba(0,0,0,.75)",fontSize:9,fontWeight:700}}>
-                          {(p.v/ce*100).toFixed(0)}%
-                        </span>}
-                      </div>
-                    ))}
-                    {/* 나머지(기타) */}
-                    <div style={{flex:1,background:C.b2,opacity:.4}}/>
-                  </div>
-                </div>
-                {/* 범례: 2열 그리드 */}
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"7px 14px"}}>
-                  {legendVals.map(p=>{
-                    const s=ce?(p.v/ce*100):0;
+              {ce>0 ? (
+                <div style={{display:"flex",flexDirection:"column",gap:7}}>
+                  {rows.map(({k,c,v})=>{
+                    const share = ce>0 ? (v/ce*100) : 0;
+                    const barW = maxV>0 ? (v/maxV*100) : 0;
                     return (
-                      <div key={p.k} style={{display:"flex",alignItems:"center",gap:7}}>
-                        <div style={{width:9,height:9,borderRadius:3,background:p.c,flexShrink:0}}/>
-                        <div style={{flex:1,minWidth:0}}>
-                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
-                            <span style={{color:C.muted2,fontSize:11}}>{p.k}</span>
-                            <span style={{color:p.c,fontWeight:800,fontSize:12}}>{s.toFixed(1)}%</span>
+                      <div key={k} style={{display:"flex",alignItems:"center",gap:8}}>
+                        {/* 항목명 */}
+                        <div style={{width:58,flexShrink:0,display:"flex",alignItems:"center",gap:5}}>
+                          <div style={{width:7,height:7,borderRadius:2,background:c,flexShrink:0}}/>
+                          <span style={{color:C.muted2,fontSize:11,fontWeight:600,
+                            whiteSpace:"nowrap"}}>{k}</span>
+                        </div>
+                        {/* 막대 */}
+                        <div style={{flex:1,height:20,background:"rgba(255,255,255,.03)",
+                          borderRadius:5,overflow:"hidden",position:"relative"}}>
+                          <div style={{
+                            position:"absolute",left:0,top:0,bottom:0,
+                            width:`${barW}%`,
+                            background:`linear-gradient(90deg,${c}cc,${c})`,
+                            borderRadius:5,transition:"width .5s ease",
+                            boxShadow:`0 0 10px ${c}40`,
+                          }}/>
+                          {/* 실적 수치 */}
+                          <div style={{position:"absolute",inset:0,display:"flex",
+                            alignItems:"center",paddingLeft:8,gap:6}}>
+                            <span style={{color:"rgba(255,255,255,.9)",fontSize:10,fontWeight:700,
+                              textShadow:"0 1px 4px rgba(0,0,0,.8)"}}>
+                              {v>0?Math.round(v).toLocaleString()+"억":"─"}
+                            </span>
                           </div>
-                          <div style={{color:C.muted,fontSize:9}}>{Math.round(p.v).toLocaleString()}억</div>
+                        </div>
+                        {/* 비중 % */}
+                        <div style={{width:44,flexShrink:0,textAlign:"right"}}>
+                          <span style={{color:c,fontSize:12,fontWeight:800}}>
+                            {share>0?share.toFixed(1)+"%":"─"}
+                          </span>
                         </div>
                       </div>
                     );
                   })}
                 </div>
-                {/* 하단 핵심 도넛 3개 */}
-                <div style={{marginTop:14,paddingTop:12,borderTop:`1px solid ${C.b1}`,
-                  display:"flex",gap:12,justifyContent:"space-around",flexWrap:"wrap"}}>
-                  {[
-                    {k:"대외영업",v:ytd(p26,"대외영업")-ytd(p26,"휴대폰"),c:KC.대외영업,lbl:"대외(폰제외)"},
-                    {k:"SAC",     v:ytd(p26,"SAC"),c:KC.SAC,lbl:"SAC"},
-                    {k:"B2B",     v:ytd(p26,"B2B")-ytd(p26,"휴대폰"),c:KC.B2B,lbl:"B2B(폰제외)"},
-                  ].map(({k,v,c,lbl})=>{
-                    const s=ce?(v/ce*100).toFixed(1):0;
-                    return (
-                      <div key={k} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
-                        <DonutChart pct={parseFloat(s)} color={c} size={60} stroke={7}/>
-                        <div style={{color:c,fontSize:10,fontWeight:700}}>{lbl}</div>
-                        <div style={{color:C.muted,fontSize:9,textAlign:"center"}}>
-                          {Math.round(v).toLocaleString()}억 · {s}%
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </>) : (
+              ) : (
                 <div style={{color:C.muted,fontSize:12,padding:"40px 0",textAlign:"center"}}>
                   CE 데이터를 입력해주세요
                 </div>
