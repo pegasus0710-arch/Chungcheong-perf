@@ -7,7 +7,7 @@
    반응형: 모바일/태블릿/PC 지원
    ═══════════════════════════════════════════════ */
 const { useState, useEffect, useCallback, useMemo, useRef } = React;
-const APP_VER = "v3.0";
+const APP_VER = "v3.1";
 
 // ─── 상수 ─────────────────────────────────────
 const MONTHS   = ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"];
@@ -671,15 +671,22 @@ function Dashboard({data,mode}){
           {/* ── 목표 잔여 현황 ── */}
           {(()=>{
             try {
-            const selPv  = ytd(p26,selKey);
-            const selTv  = ytd(t26,selKey);
-            if(selTv<=0) return null;
-            const selRem = Math.max(selTv - selPv, 0);
-            const selAr  = pct(selPv, selTv);
+            const selPv  = ytd(p26,selKey);               // 누계 실적 (emi까지)
+            // 연간 목표: 12개월 전체 합산
+            const annualTv = (() => {
+              let s=0;
+              for(let i=0;i<12;i++) s+=gNum(fullRow(t26?.[sk(i)])?.[selKey]);
+              return s;
+            })();
+            if(annualTv<=0) return null;
+            // 연간 잔여 = 연간목표 - 누계실적
+            const annualRem = Math.max(annualTv - selPv, 0);
+            // 누계 달성률 = 누계실적 / 연간목표
+            const selAr = annualTv>0 ? (selPv/annualTv*100).toFixed(1) : null;
             const color  = KC[selKey]||C.accent;
-            const remainMonths = 11 - emi;
-            const needPerMonth = remainMonths>0&&selRem>0
-              ? Math.ceil(selRem / remainMonths) : 0;
+            const remainMonths = 11 - emi; // 남은 월 수
+            const needPerMonth = remainMonths>0&&annualRem>0
+              ? Math.ceil(annualRem / remainMonths) : 0;
             const pctNum = selAr ? parseFloat(selAr) : 0;
             const r=28, stroke=6, circ=2*Math.PI*r;
             const filled = isNaN(pctNum) ? 0 : Math.min(pctNum/100,1)*circ;
@@ -690,10 +697,10 @@ function Dashboard({data,mode}){
                 <div style={{color:C.muted,fontSize:10,fontWeight:700,marginBottom:10,
                   display:"flex",alignItems:"center",gap:6}}>
                   <div style={{width:6,height:6,borderRadius:2,background:color}}/>
-                  {selKey} · 목표 잔여 현황
+                  {selKey} · 연간 목표 잔여 현황
                 </div>
                 <div style={{display:"flex",gap:12,alignItems:"center"}}>
-                  {/* 원형 도넛 — 누계 달성률 */}
+                  {/* 원형 도넛 — 연간목표 대비 누계달성 */}
                   <div style={{position:"relative",flexShrink:0}}>
                     <svg width={70} height={70}>
                       <circle cx={35} cy={35} r={r}
@@ -704,55 +711,59 @@ function Dashboard({data,mode}){
                         strokeLinecap="round"
                         transform="rotate(-90 35 35)"
                         style={{transition:"stroke-dasharray .6s ease"}}/>
-                      <text x={35} y={32} textAnchor="middle"
+                      <text x={35} y={31} textAnchor="middle"
                         fill={color} fontSize={11} fontWeight={900}>
                         {selAr?selAr+"%":"─"}
                       </text>
-                      <text x={35} y={44} textAnchor="middle"
+                      <text x={35} y={41} textAnchor="middle"
+                        fill={C.muted} fontSize={7}>
+                        연간대비
+                      </text>
+                      <text x={35} y={50} textAnchor="middle"
                         fill={C.muted} fontSize={7}>
                         누계달성
                       </text>
                     </svg>
                   </div>
                   {/* 수치 상세 */}
-                  <div style={{flex:1,display:"flex",flexDirection:"column",gap:6}}>
+                  <div style={{flex:1,display:"flex",flexDirection:"column",gap:5}}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                      <span style={{color:C.muted,fontSize:9}}>실적</span>
+                      <span style={{color:C.muted,fontSize:9}}>누계실적</span>
                       <span style={{color:color,fontSize:12,fontWeight:800}}>
                         {selPv>0?Math.round(selPv).toLocaleString()+"억":"─"}
                       </span>
                     </div>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                      <span style={{color:C.muted,fontSize:9}}>목표</span>
+                      <span style={{color:C.muted,fontSize:9}}>연간목표</span>
                       <span style={{color:C.muted2,fontSize:11,fontWeight:700}}>
-                        {Math.round(selTv).toLocaleString()}억
+                        {Math.round(annualTv).toLocaleString()}억
                       </span>
                     </div>
                     <div style={{height:1,background:C.b1}}/>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                      <span style={{color:C.muted,fontSize:9}}>잔여</span>
-                      <span style={{color:selRem>0?C.orange:C.green,fontSize:12,fontWeight:900}}>
-                        {selRem>0?"-"+Math.round(selRem).toLocaleString()+"억":"✓ 달성"}
+                      <span style={{color:C.muted,fontSize:9}}>연간 잔여목표</span>
+                      <span style={{color:annualRem>0?C.orange:C.green,fontSize:12,fontWeight:900}}>
+                        {annualRem>0?"-"+Math.round(annualRem).toLocaleString()+"억":"✓ 달성"}
                       </span>
                     </div>
                     {needPerMonth>0&&remainMonths>0&&(
                       <div style={{background:`${C.orange}15`,borderRadius:6,
                         padding:"5px 8px",border:`1px solid ${C.orange}30`}}>
-                        <div style={{color:C.muted,fontSize:8,marginBottom:1}}>
-                          잔여 {remainMonths}개월
+                        <div style={{color:C.muted,fontSize:8,marginBottom:2}}>
+                          잔여 {remainMonths}개월 · 월평균 필요금액
                         </div>
                         <div style={{display:"flex",alignItems:"baseline",gap:3}}>
-                          <span style={{color:C.orange,fontSize:13,fontWeight:900}}>
+                          <span style={{color:C.orange,fontSize:14,fontWeight:900}}>
                             {Math.round(needPerMonth).toLocaleString()}억
                           </span>
-                          <span style={{color:C.muted,fontSize:9}}>/월 필요</span>
+                          <span style={{color:C.muted,fontSize:9}}>/월</span>
                         </div>
                       </div>
                     )}
-                    {selRem===0&&selPv>0&&(
+                    {annualRem===0&&selPv>0&&(
                       <div style={{background:`${C.green}15`,borderRadius:6,
                         padding:"5px 8px",border:`1px solid ${C.green}30`,textAlign:"center"}}>
-                        <span style={{color:C.green,fontSize:11,fontWeight:800}}>🎯 목표 달성!</span>
+                        <span style={{color:C.green,fontSize:11,fontWeight:800}}>🎯 연간목표 달성!</span>
                       </div>
                     )}
                   </div>
@@ -839,7 +850,7 @@ function Dashboard({data,mode}){
             <RichLineChart h={130} series={[
               {data:sel_cum24.map((v,i)=>i<=emi?(v||0):null),color:"#fbbf24",op:.85,medium:true,tooltipLabel:"24년"},
               {data:sel_cum25.map((v,i)=>i<=emi?(v||0):null),color:"#a78bfa",op:.9,medium:true,tooltipLabel:"25년"},
-              {data:sel_cum26.map((v,i)=>i<=emi?(v||0):null),color:mColor,bold:true,fill:true,tooltipLabel:"26년"},
+              {data:sel_cum26.map((v,i)=>i<=emi?(v||0):null),color:mColor,bold:true,fill:true,showLabels:true,tooltipLabel:"26년"},
             ]} labels={MONTHS}/>
           </div>
 
@@ -1101,9 +1112,9 @@ function Dashboard({data,mode}){
         </div>
 
         {/* CE 비중 — 파트순서 기준 높은 비중 → 낮은 비중 가로 막대 */}
+        {/* ※ 휴대폰은 대외영업/B2B 실적에는 포함되나 CE 비중 분석에서는 제외 */}
         {(()=>{
           const ce=ytd(p26,"CE");
-          // 파트 순서 (ALL_KEYS에서 CE 제외)
           const PARTS=[
             {k:"대외영업", c:KC.대외영업},
             {k:"혼수",    c:KC.혼수},
@@ -1115,7 +1126,7 @@ function Dashboard({data,mode}){
             {k:"B2B",     c:KC.B2B},
             {k:"SMB",     c:KC.SMB},
             {k:"농협",    c:KC.농협},
-            {k:"휴대폰",  c:KC.휴대폰},
+            // 휴대폰 제외 — CE 비중 계산에서 제외 (실적 계산에는 포함됨)
           ];
           const rows = PARTS
             .map(p=>({...p, v:ytd(p26,p.k)}))
@@ -1158,8 +1169,11 @@ function Dashboard({data,mode}){
                   {/* 구분선 */}
                   <div style={{height:1,background:C.b1,margin:"2px 0"}}/>
                   {rows.map(({k,c,v})=>{
-                    const share = ce>0 ? (v/ce*100) : 0;
-                    const barW = ce>0 ? Math.min(v/ceBarRef*100, 100) : 0;
+                    const hp = ytd(p26,"휴대폰");
+                    // 대외영업·B2B: 실적(v)에는 휴대폰 포함, 비중 계산 시에는 제외
+                    const shareV = (k==="대외영업"||k==="B2B") ? v - hp : v;
+                    const share = ce>0 ? (shareV/ce*100) : 0;
+                    const barW = ce>0 ? Math.min(shareV/ceBarRef*100, 100) : 0;
                     return (
                       <div key={k} style={{display:"flex",alignItems:"center",gap:8}}>
                         {/* 항목명 */}
@@ -1183,7 +1197,7 @@ function Dashboard({data,mode}){
                             alignItems:"center",paddingLeft:8,gap:6}}>
                             <span style={{color:"rgba(255,255,255,.9)",fontSize:10,fontWeight:700,
                               textShadow:"0 1px 4px rgba(0,0,0,.8)"}}>
-                              {v>0?Math.round(v).toLocaleString()+"억":"─"}
+                              {shareV>0?Math.round(shareV).toLocaleString()+"억":"─"}
                             </span>
                           </div>
                         </div>
@@ -2141,13 +2155,17 @@ function Analysis({data,mode}){
                 </tr>
               </thead>
               <tbody>
-                {["대외영업","혼수","뉴홈","입주","이사","SAC","거주중","B2B","SMB","농협","휴대폰"].map(key=>(
+                {/* 휴대폰은 CE 비중 분석에서 제외 (대외영업/B2B 실적에는 포함) */}
+                {["대외영업","혼수","뉴홈","입주","이사","SAC","거주중","B2B","SMB","농협"].map(key=>(
                   <tr key={key} style={{borderBottom:`1px solid ${C.b1}18`}}>
                     <td style={{padding:"5px 10px",color:KC[key]||C.muted2,fontWeight:600,fontSize:11,
                       position:"sticky",left:0,background:C.card2,zIndex:1}}>{key}</td>
                     {mRows.map((r,i)=>{
-                      const ce=r.CE,hp=r.휴대폰;
-                      const v=key==="대외영업"?r.대외영업-hp:r[key];
+                      const ce=r.CE, hp=r.휴대폰;
+                      // 대외영업, B2B: 실적에는 휴대폰 포함이지만 비중 계산에서는 제외
+                      const v = key==="대외영업" ? r.대외영업-hp
+                               : key==="B2B"    ? r.B2B-hp
+                               : r[key];
                       const s=ce?(v/ce*100).toFixed(1):null;
                       return <td key={i} style={{padding:"5px 6px",textAlign:"right"}}>
                         {s?<span style={{color:KC[key]||C.text,fontSize:10,fontWeight:600}}>{s}%</span>
@@ -2156,8 +2174,10 @@ function Analysis({data,mode}){
                     })}
                     <td style={{padding:"5px 10px",textAlign:"right"}}>
                       {(()=>{
-                        const ce=sumM(pD,"CE"),hp=sumM(pD,"휴대폰");
-                        const v=key==="대외영업"?sumM(pD,"대외영업")-hp:sumM(pD,key);
+                        const ce=sumM(pD,"CE"), hp=sumM(pD,"휴대폰");
+                        const v = key==="대외영업" ? sumM(pD,"대외영업")-hp
+                                 : key==="B2B"    ? sumM(pD,"B2B")-hp
+                                 : sumM(pD,key);
                         const s=ce?(v/ce*100).toFixed(1):null;
                         return s?<span style={{color:KC[key]||C.accent,fontWeight:700,fontSize:11}}>{s}%</span>
                           :<span style={{color:C.muted}}>-</span>;
