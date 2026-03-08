@@ -7,7 +7,7 @@
    반응형: 모바일/태블릿/PC 지원
    ═══════════════════════════════════════════════ */
 const { useState, useEffect, useCallback, useMemo, useRef } = React;
-const APP_VER = "v15";
+const APP_VER = "v16";
 
 // ─── 상수 ─────────────────────────────────────
 const MONTHS   = ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"];
@@ -884,10 +884,10 @@ function InputTab({data,setData,mode,onSave,saveState,hasUnsaved}){
   /* ── 일괄 입력 헤더 ── */
   const BulkTH = ({c,sticky,right,children,w})=>(
     <th style={{
-      padding:"6px 5px",textAlign:right?"right":"center",
-      color:c||C.muted,fontWeight:700,fontSize:10,whiteSpace:"nowrap",
+      padding:"8px 6px",textAlign:right?"right":"center",
+      color:c||C.muted,fontWeight:700,fontSize:11,whiteSpace:"nowrap",
       ...(sticky?{position:"sticky",left:0,background:C.card,zIndex:3}:{}),
-      ...(w?{width:w,minWidth:w}:{minWidth:50}),
+      ...(w?{width:w,minWidth:w}:{minWidth:76}),
     }}>{children}</th>
   );
 
@@ -913,7 +913,7 @@ function InputTab({data,setData,mode,onSave,saveState,hasUnsaved}){
       <tr style={{borderBottom:`1px solid ${C.b1}20`,background:rowBg}}>
         {/* 항목명 */}
         <td style={{
-          padding:"3px 10px",paddingLeft:8+row.lv*12,
+          padding:"7px 10px",paddingLeft:10+row.lv*14,
           position:"sticky",left:0,background:C.card,zIndex:1,
           borderLeft:row.lv===0?`3px solid ${row.gc||C.b1}`:"none",
         }}>
@@ -931,12 +931,12 @@ function InputTab({data,setData,mode,onSave,saveState,hasUnsaved}){
           const tgr= type==="target"&&prevP&&prevVal>0 ? grw(val,prevVal) : null;
 
           return (
-            <td key={mi2} style={{padding:"2px 3px",verticalAlign:"middle"}}>
+            <td key={mi2} style={{padding:"4px 5px",verticalAlign:"middle"}}>
               {row.auto ? (
                 <div style={{
-                  padding:"4px 6px",textAlign:"right",fontSize:10,fontWeight:700,
+                  padding:"7px 8px",textAlign:"right",fontSize:11,fontWeight:700,
                   color:row.gc||clr,background:(row.gc||clr)+"12",
-                  borderRadius:4,border:`1px solid ${row.gc||clr}22`,
+                  borderRadius:5,border:`1px solid ${row.gc||clr}22`,
                 }}>
                   {val>0?Math.round(val).toLocaleString():<span style={{color:C.b2}}>─</span>}
                 </div>
@@ -947,20 +947,20 @@ function InputTab({data,setData,mode,onSave,saveState,hasUnsaved}){
                     onChange={e=>setVal(type,mi2,row.key,e.target.value)}
                     style={{
                       width:"100%",background:C.bg,
-                      border:`1px solid ${C.b1}`,borderRadius:4,
-                      padding:"3px 5px",color:clr,fontSize:10,
+                      border:`1px solid ${C.b1}`,borderRadius:5,
+                      padding:"6px 8px",color:clr,fontSize:12,
                       outline:"none",textAlign:"right",fontFamily:"inherit",
                     }}
                     onFocus={e=>{e.target.style.borderColor=clr;e.target.style.boxShadow=`0 0 0 2px ${clr}22`;}}
                     onBlur={e=>{e.target.style.borderColor=C.b1;e.target.style.boxShadow="none";}}
                   />
                   {/* 달성률 (실적) */}
-                  {ar&&<div style={{textAlign:"right"}}>
-                    <span style={{color:pctC(ar),fontSize:8,fontWeight:700}}>{ar}%</span>
+                  {ar&&<div style={{textAlign:"right",marginTop:2}}>
+                    <span style={{color:pctC(ar),fontSize:9,fontWeight:700}}>{ar}%</span>
                   </div>}
                   {/* 성장률 */}
-                  {(gr||tgr)&&<div style={{textAlign:"right"}}>
-                    <span style={{color:grwC(gr||tgr),fontSize:8}}>{grwT(gr||tgr)}</span>
+                  {(gr||tgr)&&<div style={{textAlign:"right",marginTop:1}}>
+                    <span style={{color:grwC(gr||tgr),fontSize:9}}>{grwT(gr||tgr)}</span>
                   </div>}
                 </div>
               )}
@@ -969,7 +969,7 @@ function InputTab({data,setData,mode,onSave,saveState,hasUnsaved}){
         })}
         {/* 연합계 */}
         <td style={{
-          padding:"3px 8px",textAlign:"right",
+          padding:"6px 10px",textAlign:"right",
           position:"sticky",right:0,
           background:C.card,zIndex:1,borderLeft:`1px solid ${C.b1}`,
         }}>
@@ -1130,17 +1130,17 @@ function InputTab({data,setData,mode,onSave,saveState,hasUnsaved}){
             </div>
 
             <div style={{overflowX:"auto"}}>
-              <table style={{borderCollapse:"collapse",width:"100%",tableLayout:"fixed"}}>
+              <table style={{borderCollapse:"collapse",minWidth:1100,width:"100%"}}>
                 <thead>
                   <tr style={{background:C.card2,borderBottom:`2px solid ${C.b1}`}}>
-                    <BulkTH sticky w={110}>항목</BulkTH>
+                    <BulkTH sticky w={130}>항목</BulkTH>
                     {MONTHS.map(m=>(
                       <BulkTH key={m} c={C.muted2}>
                         <div>{m}</div>
                         {hasTgt&&<div style={{color:C.muted,fontSize:8,fontWeight:400}}>달성/성장</div>}
                       </BulkTH>
                     ))}
-                    <BulkTH right c={C.accent} w={80}>연합계</BulkTH>
+                    <BulkTH right c={C.accent} w={100}>연합계</BulkTH>
                   </tr>
                 </thead>
                 <tbody>
@@ -1178,17 +1178,17 @@ function InputTab({data,setData,mode,onSave,saveState,hasUnsaved}){
               </div>
 
               <div style={{overflowX:"auto"}}>
-                <table style={{borderCollapse:"collapse",width:"100%",tableLayout:"fixed"}}>
+                <table style={{borderCollapse:"collapse",minWidth:1100,width:"100%"}}>
                   <thead>
                     <tr style={{background:C.card2,borderBottom:`2px solid ${C.b1}`}}>
-                      <BulkTH sticky w={110}>항목</BulkTH>
+                      <BulkTH sticky w={130}>항목</BulkTH>
                       {MONTHS.map(m=>(
                         <BulkTH key={m} c={C.blue}>
                           <div>{m}</div>
                           {prevYr&&<div style={{color:C.muted,fontSize:8,fontWeight:400}}>전년비</div>}
                         </BulkTH>
                       ))}
-                      <BulkTH right c={C.blue} w={80}>연합계</BulkTH>
+                      <BulkTH right c={C.blue} w={100}>연합계</BulkTH>
                     </tr>
                   </thead>
                   <tbody>
