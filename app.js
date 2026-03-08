@@ -7,7 +7,7 @@
    반응형: 모바일/태블릿/PC 지원
    ═══════════════════════════════════════════════ */
 const { useState, useEffect, useCallback, useMemo, useRef } = React;
-const APP_VER = "v2.1";
+const APP_VER = "v2.2";
 
 // ─── 상수 ─────────────────────────────────────
 const MONTHS   = ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"];
@@ -959,7 +959,7 @@ function GroupDivider({color}){
   );
 }
 
-function InputTab({data,setData,mode,onSave,saveState,hasUnsaved}){
+function InputTab({data,setData,mode,onSave,saveState,hasUnsaved,onImport}){
   const [yr,setYr]               = useState("26");
   const [mi,setMi]               = useState(0);
   const [inputMode,setInputMode] = useState("single");
@@ -1280,6 +1280,21 @@ function InputTab({data,setData,mode,onSave,saveState,hasUnsaved}){
           </div>
         )}
         {inputMode==="bulk"&&<div style={{flex:1}}/>}
+
+        {/* 가져오기 */}
+        <button onClick={onImport} style={{
+          padding:"7px 14px",borderRadius:8,
+          border:`1px solid ${C.teal}40`,
+          background:`${C.teal}10`,
+          color:C.teal,fontWeight:700,fontSize:11,
+          cursor:"pointer",fontFamily:"inherit",
+          display:"flex",alignItems:"center",gap:4,
+          transition:"all .15s",flexShrink:0,
+        }}
+        onMouseEnter={e=>{e.currentTarget.style.background=C.teal+"22";e.currentTarget.style.borderColor=C.teal;}}
+        onMouseLeave={e=>{e.currentTarget.style.background=C.teal+"10";e.currentTarget.style.borderColor=C.teal+"40";}}>
+          📥{!isMobile&&" JSON 가져오기"}
+        </button>
 
         {/* 저장 */}
         <button onClick={onSave} disabled={saveState==="saving"} style={{
@@ -1847,8 +1862,269 @@ function Analysis({data,mode}){
 //  앱 루트
 // ═══════════════════════════════════════════════
 // ═══════════════════════════════════════════════
-//  레포트 모달
+//  JSON 가져오기 모달 (딥 머지)
 // ═══════════════════════════════════════════════
+/*  지원 JSON 형식 예시:
+    {
+      "26": {
+        "판매": {
+          "perf":   { "0": {"CE":100,"혼수":10}, "1": {"CE":120} },
+          "target": { "0": {"CE":130} }
+        },
+        "매출": { ... }
+      },
+      "25": { ... }
+    }
+    → 연도 / 모드 / perf|target / 월(0~11) / 항목 키 구조
+*/
+function ImportModal({onClose, currentData, onMerge}){
+  const [jsonText, setJsonText] = useState("");
+  const [preview,  setPreview]  = useState(null);  // {added, updated, total}
+  const [step,     setStep]     = useState("edit"); // edit | confirm | done
+  const [error,    setError]    = useState("");
+
+  /* ── JSON 파싱 & 미리보기 ── */
+  const parseAndPreview = () => {
+    setError("");
+    let parsed;
+    try { parsed = JSON.parse(jsonText.trim()); }
+    catch(e){ setError("JSON 형식 오류: "+e.message); return; }
+
+    // 통계 계산 (신규 vs 덮어쓰기)
+    let added=0, updated=0;
+    const walk = (newObj, curObj, path=[]) => {
+      if(typeof newObj !== "object" || newObj===null) return;
+      Object.entries(newObj).forEach(([k,v])=>{
+        const cur = curObj?.[k];
+        if(typeof v === "object" && v!==null){
+          walk(v, cur, [...path,k]);
+        } else {
+          // 리프 노드 (실제 수치)
+          const n = Number(v);
+          if(isNaN(n)) return;
+          if(cur===undefined||cur===null||cur===""){ added++; }
+          else if(String(cur)!==String(v)){ updated++; }
+        }
+      });
+    };
+    walk(parsed, currentData);
+
+    setPreview({parsed, added, updated});
+    setStep("confirm");
+  };
+
+  /* ── 딥 머지 실행 ── */
+  const deepMerge = (base, incoming) => {
+    if(typeof incoming !== "object" || incoming===null) return incoming;
+    const result = {...base};
+    Object.entries(incoming).forEach(([k,v])=>{
+      if(typeof v==="object"&&v!==null&&!Array.isArray(v)){
+        result[k] = deepMerge(base?.[k]||{}, v);
+      } else {
+        // 숫자 값만 적용 (빈 문자열·null 등 무시)
+        const n = Number(v);
+        if(!isNaN(n) && v!=="" && v!==null) result[k] = v;
+      }
+    });
+    return result;
+  };
+
+  const doMerge = () => {
+    if(!preview) return;
+    const merged = deepMerge(currentData, preview.parsed);
+    onMerge(merged);
+    setStep("done");
+  };
+
+  /* ── 샘플 JSON 생성 ── */
+  const insertSample = () => {
+    const sample = {
+      "26": {
+        "판매": {
+          "perf": {
+            "0": {"CE":100,"혼수":10,"입주":30,"이사":5,"SMB":2,"농협":2,"거주중":1,"휴대폰":2,"SAC":1},
+            "1": {"CE":100,"혼수":10,"입주":30,"이사":5,"SMB":2,"농협":2,"거주중":1,"휴대폰":2,"SAC":1}
+          },
+          "target": {
+            "0": {"CE":120,"혼수":20,"입주":40,"이사":10,"SMB":3,"농협":3,"거주중":2,"휴대폰":3,"SAC":2}
+          }
+        }
+      }
+    };
+    setJsonText(JSON.stringify(sample, null, 2));
+    setError("");
+  };
+
+  const BADGE = (n,c,lbl) => n>0&&(
+    <span style={{background:c+"18",color:c,fontSize:11,fontWeight:700,
+      borderRadius:6,padding:"3px 10px",border:`1px solid ${c}30`}}>
+      {lbl} {n}건
+    </span>
+  );
+
+  return (
+    <div style={{
+      position:"fixed",inset:0,zIndex:9000,
+      background:"rgba(0,0,0,.78)",backdropFilter:"blur(8px)",
+      display:"flex",alignItems:"center",justifyContent:"center",padding:16,
+    }} onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div style={{
+        background:`linear-gradient(145deg,#0d1f38,#0a1628)`,
+        border:`1px solid rgba(255,255,255,.1)`,borderRadius:20,
+        padding:28,width:"100%",maxWidth:580,
+        boxShadow:"0 24px 60px rgba(0,0,0,.7)",
+        maxHeight:"90vh",overflowY:"auto",
+      }}>
+        {/* 헤더 */}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16}}>
+          <div>
+            <div style={{color:C.text,fontWeight:900,fontSize:16}}>📥 JSON 데이터 가져오기</div>
+            <div style={{color:C.muted,fontSize:11,marginTop:3,lineHeight:1.5}}>
+              신규 → 추가 &nbsp;·&nbsp; 중복 → 덮어쓰기 &nbsp;·&nbsp; 없는 데이터 → 기존 유지
+            </div>
+          </div>
+          <button onClick={onClose} style={{
+            background:"rgba(255,255,255,.06)",border:"none",borderRadius:8,
+            color:C.muted,fontSize:18,cursor:"pointer",width:32,height:32,
+            display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,
+          }}>×</button>
+        </div>
+
+        {/* ── STEP 1: 편집 ── */}
+        {step==="edit"&&(<>
+          {/* 데이터 구조 안내 */}
+          <div style={{background:"rgba(124,131,245,.08)",border:`1px solid ${C.accent}30`,
+            borderRadius:10,padding:"10px 14px",marginBottom:12,fontSize:10,color:C.muted2,lineHeight:1.7}}>
+            <div style={{color:C.accent,fontWeight:700,marginBottom:4}}>📌 JSON 구조 안내</div>
+            <code style={{color:C.muted2,fontFamily:"monospace",fontSize:10}}>
+              {"{"} "26": {"{"} "판매": {"{"} "perf": {"{"} "0": {"{"} "CE":100, "혼수":10 {"}"} {"}"} {"}"} {"}"} {"}"}
+            </code>
+            <div style={{marginTop:4}}>
+              <span style={{color:C.teal}}>월 키</span>: 0=1월, 1=2월 ... 11=12월 &nbsp;|&nbsp;
+              <span style={{color:C.orange}}>type</span>: perf(실적) 또는 target(목표)
+            </div>
+          </div>
+
+          <textarea
+            value={jsonText}
+            onChange={e=>{setJsonText(e.target.value);setError("");}}
+            placeholder='{"26":{"판매":{"perf":{"0":{"CE":100}}}}}'
+            style={{
+              width:"100%",height:220,background:C.bg,
+              border:`1px solid ${error?C.red:C.b1}`,borderRadius:10,
+              padding:12,color:C.text,fontSize:11,fontFamily:"monospace",
+              outline:"none",resize:"vertical",lineHeight:1.6,
+              boxSizing:"border-box",
+            }}
+            onFocus={e=>{e.target.style.borderColor=C.accent;}}
+            onBlur={e=>{e.target.style.borderColor=error?C.red:C.b1;}}
+          />
+
+          {error&&(
+            <div style={{color:C.red,fontSize:11,marginTop:6,padding:"6px 10px",
+              background:C.red+"10",borderRadius:6}}>
+              ⚠ {error}
+            </div>
+          )}
+
+          <div style={{display:"flex",gap:8,marginTop:12}}>
+            <button onClick={insertSample} style={{
+              padding:"8px 14px",borderRadius:8,border:`1px solid ${C.b1}`,
+              background:"transparent",color:C.muted2,cursor:"pointer",
+              fontFamily:"inherit",fontSize:11,
+            }}>샘플 JSON 불러오기</button>
+            <div style={{flex:1}}/>
+            <button onClick={onClose} style={{
+              padding:"8px 16px",borderRadius:8,border:`1px solid ${C.b1}`,
+              background:"transparent",color:C.muted,cursor:"pointer",
+              fontFamily:"inherit",fontSize:12,
+            }}>취소</button>
+            <button onClick={parseAndPreview} disabled={!jsonText.trim()} style={{
+              padding:"8px 20px",borderRadius:8,border:"none",
+              background:jsonText.trim()?`linear-gradient(135deg,${C.accent},${C.blue})`:"#1b3353",
+              color:jsonText.trim()?"#fff":C.muted,cursor:jsonText.trim()?"pointer":"default",
+              fontFamily:"inherit",fontSize:12,fontWeight:800,
+            }}>미리보기 →</button>
+          </div>
+        </>)}
+
+        {/* ── STEP 2: 확인 ── */}
+        {step==="confirm"&&preview&&(<>
+          <div style={{marginBottom:14}}>
+            <div style={{color:C.text,fontWeight:700,fontSize:13,marginBottom:10}}>
+              적용 내역 확인
+            </div>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:14}}>
+              {BADGE(preview.added, C.green, "➕ 신규")}
+              {BADGE(preview.updated, C.orange, "✏️ 덮어쓰기")}
+              {preview.added===0&&preview.updated===0&&(
+                <span style={{color:C.muted,fontSize:11}}>변경사항 없음</span>
+              )}
+            </div>
+
+            {/* 적용될 연도/모드 목록 */}
+            <div style={{background:C.bg,borderRadius:10,padding:12,
+              border:`1px solid ${C.b1}`,fontSize:11}}>
+              <div style={{color:C.muted,fontWeight:700,marginBottom:8}}>적용 대상</div>
+              {Object.entries(preview.parsed).map(([yr,modes])=>(
+                <div key={yr} style={{marginBottom:6}}>
+                  <span style={{color:C.accent,fontWeight:700}}>{yr}년</span>
+                  {Object.entries(modes).map(([m,types])=>(
+                    <span key={m} style={{marginLeft:8,color:C.muted2}}>
+                      {m} ({Object.keys(types).join(", ")})
+                    </span>
+                  ))}
+                </div>
+              ))}
+            </div>
+
+            <div style={{marginTop:12,padding:"10px 14px",
+              background:C.green+"08",border:`1px solid ${C.green}30`,
+              borderRadius:8,fontSize:11,color:C.muted2,lineHeight:1.6}}>
+              ✅ 기존 데이터는 유지됩니다.<br/>
+              JSON에 없는 항목·월은 현재 값 그대로 보존됩니다.
+            </div>
+          </div>
+
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={()=>setStep("edit")} style={{
+              flex:1,padding:"10px",borderRadius:8,border:`1px solid ${C.b1}`,
+              background:"transparent",color:C.muted2,cursor:"pointer",
+              fontFamily:"inherit",fontSize:12,
+            }}>← 다시 편집</button>
+            <button onClick={doMerge} style={{
+              flex:2,padding:"10px",borderRadius:8,border:"none",
+              background:`linear-gradient(135deg,${C.green},${C.teal})`,
+              color:"#fff",cursor:"pointer",fontFamily:"inherit",
+              fontSize:13,fontWeight:900,
+            }}>✅ 병합 적용 후 저장</button>
+          </div>
+        </>)}
+
+        {/* ── STEP 3: 완료 ── */}
+        {step==="done"&&(
+          <div style={{textAlign:"center",padding:"32px 0"}}>
+            <div style={{fontSize:40,marginBottom:12}}>✅</div>
+            <div style={{color:C.green,fontWeight:800,fontSize:15,marginBottom:6}}>
+              병합 완료!
+            </div>
+            <div style={{color:C.muted,fontSize:12,marginBottom:8}}>
+              데이터가 적용되었습니다.<br/>
+              <span style={{color:C.orange}}>💾 저장 버튼을 눌러 Firebase에 저장하세요.</span>
+            </div>
+            <button onClick={onClose} style={{
+              marginTop:16,padding:"10px 32px",borderRadius:8,border:"none",
+              background:C.green+"22",color:C.green,cursor:"pointer",
+              fontFamily:"inherit",fontSize:13,fontWeight:700,
+            }}>닫기</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
 function ReportModal({onClose, mode, tab}){
   const [step,   setStep]   = useState("select"); // select | progress | done
   const [type,   setType]   = useState(null);     // "excel_img" | "pdf" | "excel_data"
@@ -2209,6 +2485,7 @@ function App(){
   const [hasUnsaved,setHasUnsaved]= useState(false);
   const [dbStatus,  setDbStatus]  = useState("연결중...");
   const [showReport,setShowReport]= useState(false);
+  const [showImport,setShowImport]= useState(false);
   const isMobile = useIsMobile();
 
   // 레포트용 전역 데이터 노출
@@ -2263,6 +2540,23 @@ function App(){
       setTimeout(()=>setSaveState("idle"),3000);
     }
   },[data]);
+
+  // JSON 딥머지 후 즉시 Firebase 저장
+  const handleMerge = useCallback(async(merged)=>{
+    setData(merged);
+    localStorage.setItem("cst_v13", JSON.stringify(merged));
+    setHasUnsaved(true);
+    // 자동 저장
+    try{
+      await DOC().set({perfData:merged, updatedAt:new Date().toISOString()});
+      localStorage.setItem("cst_v13", JSON.stringify(merged));
+      setHasUnsaved(false);
+      setSaveState("saved");
+      setTimeout(()=>setSaveState("idle"),2500);
+    }catch(e){
+      // Firebase 실패해도 로컬에는 저장됨 — 사용자가 수동 저장 가능
+    }
+  },[]);
 
   const mColor=C[mode];
   const TABS=[{k:"dashboard",l:"대시보드",i:"◈"},{k:"analysis",l:"실적분석",i:"◉"},{k:"input",l:"실적입력",i:"◎"}];
@@ -2360,7 +2654,8 @@ function App(){
         {tab==="dashboard"&&<Dashboard data={data} mode={mode}/>}
         {tab==="analysis" &&<Analysis  data={data} mode={mode}/>}
         {tab==="input"    &&<InputTab  data={data} setData={handleSetData} mode={mode}
-          onSave={handleSave} saveState={saveState} hasUnsaved={hasUnsaved}/>}
+          onSave={handleSave} saveState={saveState} hasUnsaved={hasUnsaved}
+          onImport={()=>setShowImport(true)}/>}
       </div>
 
       {/* 푸터 */}
@@ -2379,9 +2674,14 @@ function App(){
       </div>
       {/* 레포트 모달 */}
       {showReport&&(
-        <ReportModal
-          onClose={()=>setShowReport(false)}
-          mode={mode} tab={tab}
+        <ReportModal onClose={()=>setShowReport(false)} mode={mode} tab={tab}/>
+      )}
+      {/* JSON 가져오기 모달 */}
+      {showImport&&(
+        <ImportModal
+          onClose={()=>setShowImport(false)}
+          currentData={data}
+          onMerge={handleMerge}
         />
       )}
     </div>
