@@ -1,0 +1,26 @@
+{
+  "name": "충청영업팀 실적관리",
+  "short_name": "충청실적",
+  "description": "Chungcheong Sales Team 실적관리 시스템",
+  "start_url": "/Chungcheong-perf/",
+  "scope": "/Chungcheong-perf/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#07101f",
+  "theme_color": "#07101f",
+  "lang": "ko",
+  "icons": [
+    {
+      "src": "icon_192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon_512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

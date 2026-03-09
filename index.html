@@ -3,7 +3,24 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Chungcheong Sales Team 실적관리 시스템</title>
+  <title>충청영업팀 실적관리</title>
+
+  <!-- ══ PWA 메타 태그 ══ -->
+  <meta name="theme-color" content="#07101f" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="충청실적" />
+  <meta name="application-name" content="충청실적" />
+  <meta name="description" content="충청영업팀 실적관리 시스템" />
+
+  <!-- ══ PWA 아이콘 ══ -->
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/png" sizes="512x512" href="icon_512.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icon_192.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="icon_180.png" />
+  <link rel="apple-touch-icon" sizes="192x192" href="icon_192.png" />
+  <link rel="apple-touch-icon" sizes="512x512" href="icon_512.png" />
 
   <!-- ── 외부 라이브러리 (CDN) ── -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
@@ -35,7 +52,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
 
   <link rel="stylesheet" href="style.css" />
 
@@ -210,7 +226,7 @@
   </script>
 
   <!-- ── 앱 로직 (기능·실적 로직 수정 시 이 파일만 교체) ── -->
-  <script type="text/babel" src="app.js?v=2.8"></script>
+  <script type="text/babel" src="app.js?v=3.1"></script>
 
 </body>
 </html>
