@@ -466,38 +466,25 @@ function CeShareBar({data, emi}){
 class ErrorBoundary extends React.Component {
   constructor(props){
     super(props);
-    this.state={error:null, retries:0, retrying:false};
+    // resetKey가 바뀌면 children을 완전히 unmount → remount (hook 상태 초기화)
+    this.state={error:null, resetKey:0, autoRetried:false};
     this._timer=null;
   }
   static getDerivedStateFromError(e){ return {error:e}; }
   componentDidCatch(e, info){
     console.error("🔴 렌더에러:", e, info);
-    // 3회 미만이면 자동 재시도 (점진적 딜레이)
-    if(this.state.retries < 3){
-      const delay = 400 * (this.state.retries + 1);
-      this.setState({retrying:true});
+    // 초기 진입 에러(#310 등)는 1회 자동 재시도
+    // resetKey 증가 → children 완전 새 인스턴스로 remount
+    if(!this.state.autoRetried){
       this._timer = setTimeout(()=>{
-        this.setState(s=>({error:null, retrying:false, retries:s.retries+1}));
-      }, delay);
+        this.setState(s=>({error:null, resetKey:s.resetKey+1, autoRetried:true}));
+      }, 300);
     }
   }
   componentWillUnmount(){ clearTimeout(this._timer); }
   render(){
-    // 자동 재시도 중 — 조용한 로딩 표시
-    if(this.state.retrying){
-      return (
-        <div style={{padding:60,display:"flex",flexDirection:"column",
-          alignItems:"center",justifyContent:"center",gap:14}}>
-          <div style={{width:28,height:28,borderRadius:"50%",
-            border:"3px solid rgba(56,182,245,.15)",
-            borderTopColor:"#38b6f5",
-            animation:"spin 0.9s linear infinite"}}/>
-          <span style={{color:"#3d5f7e",fontSize:12}}>화면 초기화 중...</span>
-        </div>
-      );
-    }
-    // 3회 재시도 후에도 실패 → 수동 재시도 버튼 표시
     if(this.state.error){
+      // 자동 재시도 1회 실패 시 → 수동 버튼 표시
       return (
         <div style={{padding:24,background:"#1a0a0a",border:"1px solid #f0707060",
           borderRadius:12,color:"#f07070",margin:16}}>
@@ -509,7 +496,7 @@ class ErrorBoundary extends React.Component {
             background:"rgba(0,0,0,.3)",padding:"8px 12px",borderRadius:6,wordBreak:"break-all"}}>
             {String(this.state.error)}
           </div>
-          <button onClick={()=>this.setState({error:null,retries:0,retrying:false})} style={{
+          <button onClick={()=>this.setState(s=>({error:null,resetKey:s.resetKey+1,autoRetried:false}))} style={{
             marginTop:14,padding:"7px 18px",borderRadius:7,border:"none",
             background:"#f07070",color:"#fff",cursor:"pointer",fontWeight:700,fontSize:12,
             fontFamily:"inherit",
@@ -517,7 +504,12 @@ class ErrorBoundary extends React.Component {
         </div>
       );
     }
-    return this.props.children;
+    // resetKey가 key로 전달 → 변경 시 children 완전 remount
+    return (
+      <React.Fragment key={this.state.resetKey}>
+        {this.props.children}
+      </React.Fragment>
+    );
   }
 }
 
@@ -2033,6 +2025,21 @@ function InputTab({data,setData,mode,onSave,saveState,hasUnsaved,onImport}){
 // ═══════════════════════════════════════════════
 //  실적 분석
 // ═══════════════════════════════════════════════
+// AnalysisBtn: Analysis 밖에 정의 (안에 두면 매 렌더마다 새 타입 → hook 오염)
+function AnalysisBtn({label,active,onClick,clr,color}){
+  const c = clr||color||"#7c83f5";
+  return (
+    <button onClick={onClick} style={{
+      padding:"5px 10px",borderRadius:6,cursor:"pointer",fontWeight:700,fontSize:11,
+      fontFamily:"inherit",whiteSpace:"nowrap",transition:"all .15s",
+      border:`1px solid ${active?c:C.b2}`,
+      background:active?c+"28":"transparent",
+      color:active?c:C.muted,
+      boxShadow:active?`0 0 6px ${c}30`:"none",
+    }}>{label}</button>
+  );
+}
+
 function Analysis({data,mode}){
   const [yr,    setYr]  = useState("26");
   const [selKey,setSel] = useState("대외영업");
@@ -2103,16 +2110,6 @@ function Analysis({data,mode}){
   const negMaxGr = allGrVals.length>0 ? Math.max(...allGrVals.filter(v=>v<0).map(v=>Math.abs(v)),0) : 0;
   const offsetGr = v => v!==null ? parseFloat((v+negMaxGr).toFixed(1)) : null;
 
-  const Btn = ({label,active,onClick,clr}) => (
-    <button onClick={onClick} style={{
-      padding:"5px 10px",borderRadius:6,cursor:"pointer",fontWeight:700,fontSize:11,
-      fontFamily:"inherit",whiteSpace:"nowrap",transition:"all .15s",
-      border:`1px solid ${active?(clr||color):C.b2}`,
-      background:active?(clr||color)+"28":"transparent",
-      color:active?(clr||color):C.muted,
-      boxShadow:active?`0 0 6px ${clr||color}30`:"none",
-    }}>{label}</button>
-  );
 
   return (
     <div style={{display:"flex",flexDirection:"column",gap:12}}>
@@ -2123,14 +2120,14 @@ function Analysis({data,mode}){
         <div style={{display:"flex",gap:4}}>
           <span style={{color:C.muted,fontSize:10,fontWeight:700,alignSelf:"center",marginRight:2}}>연도</span>
           {["24","25","26"].map(y=>(
-            <Btn key={y} label={y+"년"} active={yr===y} onClick={()=>setYr(y)} clr={C.blue}/>
+            <AnalysisBtn key={y} label={y+"년"} active={yr===y} onClick={()=>setYr(y)} clr={C.blue}/>
           ))}
         </div>
         <div style={{width:1,height:20,background:C.b1}}/>
         <div style={{display:"flex",gap:4,flexWrap:"wrap",flex:1}}>
           <span style={{color:C.muted,fontSize:10,fontWeight:700,alignSelf:"center",marginRight:2}}>파트</span>
           {ANALYSIS_KEYS.map(k=>(
-            <Btn key={k} label={k} active={selKey===k} onClick={()=>setSel(k)} clr={KC[k]}/>
+            <AnalysisBtn key={k} label={k} active={selKey===k} onClick={()=>setSel(k)} clr={KC[k]}/>
           ))}
         </div>
       </div>
