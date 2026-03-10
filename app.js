@@ -9,6 +9,16 @@
 const { useState, useEffect, useCallback, useMemo, useRef } = React;
 const APP_VER = "v3.1";
 
+// ─── spin 애니메이션 전역 주입 (ErrorBoundary/내부 스피너용) ───
+(()=>{
+  if(!document.getElementById("cst-spin-style")){
+    const s=document.createElement("style");
+    s.id="cst-spin-style";
+    s.textContent="@keyframes spin{to{transform:rotate(360deg)}}";
+    document.head.appendChild(s);
+  }
+})();
+
 // ─── 상수 ─────────────────────────────────────
 const MONTHS   = ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"];
 const INP_KEYS = ["CE","혼수","입주","이사","SAC","거주중","SMB","농협","휴대폰"];
@@ -451,26 +461,55 @@ function CeShareBar({data, emi}){
 }
 
 // ═══════════════════════════════════════════════
-//  ErrorBoundary — 렌더 에러 포착
+//  ErrorBoundary — 렌더 에러 포착 + 자동 재시도
 // ═══════════════════════════════════════════════
 class ErrorBoundary extends React.Component {
-  constructor(props){ super(props); this.state={error:null}; }
+  constructor(props){
+    super(props);
+    this.state={error:null, retries:0, retrying:false};
+    this._timer=null;
+  }
   static getDerivedStateFromError(e){ return {error:e}; }
-  componentDidCatch(e,info){ console.error("🔴 렌더에러:", e, info); }
+  componentDidCatch(e, info){
+    console.error("🔴 렌더에러:", e, info);
+    // 3회 미만이면 자동 재시도 (점진적 딜레이)
+    if(this.state.retries < 3){
+      const delay = 400 * (this.state.retries + 1);
+      this.setState({retrying:true});
+      this._timer = setTimeout(()=>{
+        this.setState(s=>({error:null, retrying:false, retries:s.retries+1}));
+      }, delay);
+    }
+  }
+  componentWillUnmount(){ clearTimeout(this._timer); }
   render(){
+    // 자동 재시도 중 — 조용한 로딩 표시
+    if(this.state.retrying){
+      return (
+        <div style={{padding:60,display:"flex",flexDirection:"column",
+          alignItems:"center",justifyContent:"center",gap:14}}>
+          <div style={{width:28,height:28,borderRadius:"50%",
+            border:"3px solid rgba(56,182,245,.15)",
+            borderTopColor:"#38b6f5",
+            animation:"spin 0.9s linear infinite"}}/>
+          <span style={{color:"#3d5f7e",fontSize:12}}>화면 초기화 중...</span>
+        </div>
+      );
+    }
+    // 3회 재시도 후에도 실패 → 수동 재시도 버튼 표시
     if(this.state.error){
       return (
         <div style={{padding:24,background:"#1a0a0a",border:"1px solid #f0707060",
           borderRadius:12,color:"#f07070",margin:16}}>
           <div style={{fontWeight:800,fontSize:14,marginBottom:8}}>⚠ 화면 렌더 오류</div>
           <div style={{fontSize:11,color:"#7a9ab8",marginBottom:12}}>
-            모드 전환 중 에러가 발생했습니다. 아래 메시지를 확인하거나 다른 탭을 클릭 후 돌아오세요.
+            화면을 불러오는 중 오류가 발생했습니다. 다시 시도해 주세요.
           </div>
           <div style={{fontSize:10,fontFamily:"monospace",color:"#f5b942",
             background:"rgba(0,0,0,.3)",padding:"8px 12px",borderRadius:6,wordBreak:"break-all"}}>
             {String(this.state.error)}
           </div>
-          <button onClick={()=>this.setState({error:null})} style={{
+          <button onClick={()=>this.setState({error:null,retries:0,retrying:false})} style={{
             marginTop:14,padding:"7px 18px",borderRadius:7,border:"none",
             background:"#f07070",color:"#fff",cursor:"pointer",fontWeight:700,fontSize:12,
             fontFamily:"inherit",
@@ -2965,6 +3004,7 @@ function App(){
   const [saveState, setSaveState] = useState("idle");
   const [hasUnsaved,setHasUnsaved]= useState(false);
   const [dbStatus,  setDbStatus]  = useState("연결중...");
+  const [dbReady,   setDbReady]   = useState(false);   // ← 추가: Firebase 응답 완료 여부
   const [showReport,setShowReport]= useState(false);
   const [showImport,setShowImport]= useState(false);
   const isMobile = useIsMobile();
@@ -2995,7 +3035,10 @@ function App(){
           const loc=localStorage.getItem("cst_v13")||localStorage.getItem("cst_v10")||localStorage.getItem("perf_data_v3");
           if(loc) setData(migrate(JSON.parse(loc)));
         }catch{}
-      } finally{ window.__appReady=true; }
+      } finally{
+        setDbReady(true);     // ← Firebase 완료 신호 (성공/실패 무관)
+        window.__appReady=true;
+      }
     })();
   },[]);
 
@@ -3136,11 +3179,25 @@ function App(){
           </h1>
         </div>
         <ErrorBoundary key={tab+mode}>
-          {tab==="dashboard"&&<Dashboard key={mode} data={data} mode={mode}/>}
-          {tab==="analysis" &&<Analysis  key={mode} data={data} mode={mode}/>}
-          {tab==="input"    &&<InputTab  key={mode} data={data} setData={handleSetData} mode={mode}
-          onSave={handleSave} saveState={saveState} hasUnsaved={hasUnsaved}
-          onImport={()=>setShowImport(true)}/>}
+          {!dbReady ? (
+            /* Firebase 응답 전 — 빈 데이터로 렌더 방지 */
+            <div style={{padding:60,display:"flex",flexDirection:"column",
+              alignItems:"center",justifyContent:"center",gap:14}}>
+              <div style={{width:28,height:28,borderRadius:"50%",
+                border:"3px solid rgba(56,182,245,.15)",
+                borderTopColor:"#38b6f5",
+                animation:"spin 0.9s linear infinite"}}/>
+              <span style={{color:"#3d5f7e",fontSize:12}}>데이터 불러오는 중...</span>
+            </div>
+          ) : (
+            <>
+              {tab==="dashboard"&&<Dashboard key={mode} data={data} mode={mode}/>}
+              {tab==="analysis" &&<Analysis  key={mode} data={data} mode={mode}/>}
+              {tab==="input"    &&<InputTab  key={mode} data={data} setData={handleSetData} mode={mode}
+              onSave={handleSave} saveState={saveState} hasUnsaved={hasUnsaved}
+              onImport={()=>setShowImport(true)}/>}
+            </>
+          )}
         </ErrorBoundary>
       </div>
 
