@@ -77,7 +77,7 @@
 
 <script>
   const PW_HASH    = "7964106471ddb947a30a14c1f9a74a3fed4a7d6029f0047291138292c23a4c99";
-  const SESSION_KEY = "cst_auth_v1";
+  const AUTH_KEY = "cst_auth_v1";
   async function sha256(str){
     const buf=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(str));
     return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
@@ -89,7 +89,8 @@
     if(!input){errEl.textContent="비밀번호를 입력해주세요.";return;}
     const hash=await sha256(input);
     if(hash===PW_HASH){
-      sessionStorage.setItem(SESSION_KEY,"1");
+      localStorage.setItem(AUTH_KEY,"1");
+      sessionStorage.setItem(AUTH_KEY,"1");
       document.getElementById("pw-gate").style.display="none";
     } else {
       errEl.textContent="비밀번호가 올바르지 않습니다.";
@@ -100,7 +101,8 @@
     }
   }
   (function(){
-    if(sessionStorage.getItem(SESSION_KEY)==="1"){
+    // sessionStorage(현재 탭) 또는 localStorage(이미 다른 탭에서 로그인)면 게이트 숨김
+    if(sessionStorage.getItem(AUTH_KEY)==="1"||localStorage.getItem(AUTH_KEY)==="1"){
       document.getElementById("pw-gate").style.display="none";
     }
   })();
@@ -504,7 +506,7 @@ function PlanApp(){
       ["CE비중",ceSharePct?ceSharePct.toFixed(1)+"%":"─"],
       ["대외영업비중",daeSharePct?daeSharePct.toFixed(1)+"%":"─"],
     ];
-    addSheet("KPI요약",[h1,[],[`${yr}년 ${MONTHS[emi]} 기준`,mode,part],[],,...kpiRows]);
+    addSheet("KPI요약",[h1,[],[`${yr}년 ${MONTHS[emi]} 기준`,mode,part],[],...kpiRows]);
 
     XLSX.writeFile(wb,`충청영업팀_${yr}년_${mode}_${part}_${new Date().toISOString().slice(0,10)}.xlsx`);
   };

@@ -189,6 +189,7 @@
       const hash = await sha256(input);
       if (hash === PW_HASH) {
         sessionStorage.setItem(SESSION_KEY, "1");
+        localStorage.setItem(SESSION_KEY, "1");
         document.getElementById("pw-gate").style.display    = "none";
         document.getElementById("db-loading").style.display = "flex";
         // 앱 스크립트 로드 완료 대기 후 표시
@@ -210,7 +211,7 @@
     }
 
     (function() {
-      if (sessionStorage.getItem(SESSION_KEY) === "1") {
+      if (sessionStorage.getItem(SESSION_KEY) === "1" || localStorage.getItem(SESSION_KEY) === "1") {
         document.getElementById("pw-gate").style.display    = "none";
         document.getElementById("db-loading").style.display = "flex";
         const waitReact = setInterval(() => {
