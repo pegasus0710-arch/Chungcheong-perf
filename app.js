@@ -3156,7 +3156,7 @@ function App(){
             🖨️{!isMobile&&" 레포트"}
           </button>
           {/* 달성계획 링크 버튼 */}
-          <a href="plan.html" target="_blank" rel="noopener noreferrer" style={{
+          <a href="plan.html" style={{
             padding:"5px 12px",borderRadius:7,border:`1px solid #7c83f540`,
             background:"#7c83f510",color:"#7c83f5",fontWeight:700,fontSize:11,
             textDecoration:"none",display:"flex",alignItems:"center",gap:5,
