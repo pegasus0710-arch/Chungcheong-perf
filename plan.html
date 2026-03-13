@@ -309,14 +309,14 @@ function PlanApp(){
     return()=>clearTimeout(autoSaveTimer.current);
   },[draft]);
 
-  const pD=useMemo(()=>perfData?.[yr]?.[mode]?.perf||{},[perfData,yr,mode]);
-  const tD=useMemo(()=>perfData?.[yr]?.[mode]?.target||{},[perfData,yr,mode]);
+  const pD=useMemo(()=>{ const y=perfData&&perfData[yr]; const m=y&&y[mode]; return (m&&m.perf)||{}; },[perfData,yr,mode]);
+  const tD=useMemo(()=>{ const y=perfData&&perfData[yr]; const m=y&&y[mode]; return (m&&m.target)||{}; },[perfData,yr,mode]);
   const prevYrKey=yr==="26"?"25":yr==="25"?"24":null;
-  const pD25=useMemo(()=>prevYrKey&&perfData?.[prevYrKey]?.[mode]?.perf||{}:{},[perfData,prevYrKey,mode]);
+  const pD25=useMemo(()=>{ if(!prevYrKey||!perfData)return {}; const y=perfData[prevYrKey]; if(!y)return {}; const m=y[mode]; return (m&&m.perf)||{}; },[perfData,prevYrKey,mode]);
 
-  const mPerf=useMemo(()=>MONTHS.map((_,i)=>gNum(fullRow(pD[sk(i)])?.[part])),[pD,part]);
-  const mTgt=useMemo(()=>MONTHS.map((_,i)=>gNum(fullRow(tD[sk(i)])?.[part])),[tD,part]);
-  const mPrev=useMemo(()=>MONTHS.map((_,i)=>gNum(fullRow(pD25[sk(i)])?.[part])),[pD25,part]);
+  const mPerf=useMemo(()=>MONTHS.map((_,i)=>gNum((fullRow(pD[sk(i)])||{})[part])),[pD,part]);
+  const mTgt=useMemo(()=>MONTHS.map((_,i)=>gNum((fullRow(tD[sk(i)])||{})[part])),[tD,part]);
+  const mPrev=useMemo(()=>MONTHS.map((_,i)=>gNum((fullRow(pD25[sk(i)])||{})[part])),[pD25,part]);
 
   const emi=useMemo(()=>{
     for(let i=11;i>=0;i--){
@@ -328,10 +328,10 @@ function PlanApp(){
 
   // 계획 데이터 접근
   const getPlan=(pYr,pMode,pPart,mi)=>{
-    const d=draft?.[pYr]?.[pMode]?.[pPart];
-    const p=planData?.[pYr]?.[pMode]?.[pPart];
+    const d=(draft[pYr]&&draft[pYr][pMode]&&draft[pYr][pMode][pPart])||null;
+    const p=(planData[pYr]&&planData[pYr][pMode]&&planData[pYr][pMode][pPart])||null;
     if(mi==="annual") return gNum(d?.annual)||gNum(p?.annual);
-    return gNum(d?.[mi])||gNum(p?.[mi]);
+    return gNum(d&&d[mi])||gNum(p&&p[mi]);
   };
   const setPlan=(pYr,pMode,pPart,mi,val)=>{
     setDraft(prev=>{
