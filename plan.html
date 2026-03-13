@@ -274,6 +274,27 @@ function Chip({c,children}){
     padding:"2px 6px",borderRadius:4,border:`1px solid ${c}40`}}>{children}</span>;
 }
 
+// ── 자동 높이 textarea
+function AutoTextarea({value,onChange,placeholder,minHeight=220,readOnly=false,style={}}){
+  const ref=useRef(null);
+  useEffect(()=>{
+    const el=ref.current;
+    if(!el)return;
+    el.style.height="auto";
+    el.style.height=Math.max(minHeight,el.scrollHeight)+"px";
+  },[value,minHeight]);
+  return(
+    <textarea ref={ref} value={value} onChange={readOnly?undefined:onChange}
+      readOnly={readOnly} placeholder={readOnly?"":placeholder}
+      style={{width:"100%",minHeight:minHeight,background:readOnly?"rgba(255,255,255,.03)":C.bg,
+        border:`1px solid ${readOnly?C.b1:C.accent+"50"}`,borderRadius:8,
+        padding:"14px 16px",color:readOnly?C.muted2:C.text,fontSize:13,lineHeight:1.7,
+        outline:"none",resize:readOnly?"none":"vertical",overflow:"hidden",
+        cursor:readOnly?"default":"text",
+        transition:"height .1s ease, background .2s, border-color .2s",...style}}/>
+  );
+}
+
 function TabBtn({label,active,color,onClick}){
   return(
     <button onClick={onClick} style={{
@@ -291,7 +312,7 @@ function PlanApp(){
   const [planTextData,setPlanTextData]=useState({});  // Firebase 저장 텍스트 계획
   const [textDraft,setTextDraft]=useState({});         // 로컬 미저장 텍스트
   const [part,setPart]=useState("대외영업");
-  const [mode,setMode]=useState("판매");
+  const [mode,setMode]=useState("매출");
   const [yr,setYr]=useState("26");
   const [chartTab,setChartTab]=useState("실적");
   const [cumChartTab,setCumChartTab]=useState("실적");
@@ -299,6 +320,7 @@ function PlanApp(){
   const [dbReady,setDbReady]=useState(false);
   const [planInput,setPlanInput]=useState("26");
   const [selMonth,setSelMonth]=useState("annual"); // 'annual' | 0~11
+  const [isEditing,setIsEditing]=useState(false);   // 수정 모드 잠금
   const autoSaveTimer=useRef(null);
 
   // Firebase 로드
@@ -336,18 +358,18 @@ function PlanApp(){
   },[textDraft]);
 
   // 텍스트 접근 헬퍼
-  const getText=(pYr,pMode,pPart,mk)=>{
-    const d=textDraft[pYr]&&textDraft[pYr][pMode]&&textDraft[pYr][pMode][pPart]&&textDraft[pYr][pMode][pPart][mk];
-    const p=planTextData[pYr]&&planTextData[pYr][pMode]&&planTextData[pYr][pMode][pPart]&&planTextData[pYr][pMode][pPart][mk];
+  // 계획 텍스트: mode 무관하게 동일 데이터 (판매/매출 공통)
+  const getText=(pYr,_mode,pPart,mk)=>{
+    const d=textDraft[pYr]&&textDraft[pYr][pPart]&&textDraft[pYr][pPart][mk];
+    const p=planTextData[pYr]&&planTextData[pYr][pPart]&&planTextData[pYr][pPart][mk];
     return d!==undefined?d:(p||"");
   };
-  const setText=(pYr,pMode,pPart,mk,val)=>{
+  const setText=(pYr,_mode,pPart,mk,val)=>{
     setTextDraft(prev=>{
       const next=JSON.parse(JSON.stringify(prev));
       if(!next[pYr])next[pYr]={};
-      if(!next[pYr][pMode])next[pYr][pMode]={};
-      if(!next[pYr][pMode][pPart])next[pYr][pMode][pPart]={};
-      next[pYr][pMode][pPart][mk]=val;
+      if(!next[pYr][pPart])next[pYr][pPart]={};
+      next[pYr][pPart][mk]=val;
       return next;
     });
   };
@@ -374,6 +396,7 @@ function PlanApp(){
       setTextDraft({});
       localStorage.removeItem(LS_TEXT);
       setSaveState("saved");
+      setIsEditing(false); // 저장 후 잠금
       setTimeout(()=>setSaveState("idle"),2500);
     }catch(e){
       console.error("저장 오류:",e);
@@ -443,11 +466,25 @@ function PlanApp(){
   const mArArr=MONTHS.map((_,i)=>i<=emi&&mTgt[i]>0?(mPerf[i]/mTgt[i]*100):null);
   const mGrArr=MONTHS.map((_,i)=>i<=emi&&mPrev[i]>0?((mPerf[i]-mPrev[i])/mPrev[i]*100):null);
 
-  // 선택 월 정보
+  // ── planInput 연도 기준 참고 데이터
+  const planPrevYrKey=planInput==="26"?"25":planInput==="25"?"24":null;
+  const pD_pl=useMemo(()=>{const y=perfData&&perfData[planInput];const m=y&&y[mode];return(m&&m.perf)||{};},[perfData,planInput,mode]);
+  const tD_pl=useMemo(()=>{const y=perfData&&perfData[planInput];const m=y&&y[mode];return(m&&m.target)||{};},[perfData,planInput,mode]);
+  const pD25_pl=useMemo(()=>{if(!planPrevYrKey||!perfData)return{};const y=perfData[planPrevYrKey];const m=y&&y[mode];return(m&&m.perf)||{};},[perfData,planPrevYrKey,mode]);
+  const mTgt_pl =useMemo(()=>MONTHS.map((_,i)=>gNum((fullRow(tD_pl[sk(i)])||{})[part])),[tD_pl,part]);
+  const mPerf_pl=useMemo(()=>MONTHS.map((_,i)=>gNum((fullRow(pD_pl[sk(i)])||{})[part])),[pD_pl,part]);
+  const mPrev_pl=useMemo(()=>MONTHS.map((_,i)=>gNum((fullRow(pD25_pl[sk(i)])||{})[part])),[pD25_pl,part]);
+  const annT_pl =mTgt_pl.reduce((a,b)=>a+b,0);
+  const emi_pl  =useMemo(()=>{for(let i=11;i>=0;i--){const r=pD_pl[sk(i)];if(r&&Object.values(r).some(v=>gNum(v)>0))return i;}return -1;},[pD_pl]);
+  const ytdP_pl =mPerf_pl.slice(0,Math.max(emi_pl+1,0)).reduce((a,b)=>a+b,0);
+  const ytdPrev_pl=mPrev_pl.slice(0,Math.max(emi_pl+1,0)).reduce((a,b)=>a+b,0);
+
+  // 선택 월 정보 (planInput 연도 기준)
+  const annPrev_pl=mPrev_pl.reduce((a,b)=>a+b,0); // 전년 연간 합계
   const selMi=selMonth==="annual"?null:selMonth;
-  const selTgt =selMi!==null?mTgt[selMi]:annT;
-  const selPerf=selMi!==null?mPerf[selMi]:ytdP;
-  const selPrev=selMi!==null?mPrev[selMi]:ytdPrev;
+  const selTgt =selMi!==null?mTgt_pl[selMi]:annT_pl;
+  const selPerf=selMi!==null?mPerf_pl[selMi]:ytdP_pl;
+  const selPrev=selMi!==null?mPrev_pl[selMi]:annPrev_pl; // 연간 선택시 전년 연간 합계
   const selGrowthTarget=selPrev>0&&selTgt>0?((selTgt-selPrev)/selPrev*100).toFixed(1):null;
   const selAr=selTgt>0&&selPerf>0?(selPerf/selTgt*100).toFixed(1):null;
 
@@ -539,11 +576,12 @@ function PlanApp(){
               </button>
             ))}
           </div>
-          <button onClick={handleSave} disabled={!hasDraft||saveState==="saving"} style={{
-            padding:"6px 14px",borderRadius:6,cursor:hasDraft?"pointer":"default",fontWeight:700,
+          <button onClick={handleSave} disabled={!isEditing||!hasDraft||saveState==="saving"} style={{
+            padding:"6px 14px",borderRadius:6,
+            cursor:isEditing&&hasDraft?"pointer":"default",fontWeight:700,
             fontSize:11,fontFamily:"inherit",border:"none",flexShrink:0,
-            background:saveState==="saved"?C.green:saveState==="error"?C.red:hasDraft?C.accent:"rgba(255,255,255,.06)",
-            color:hasDraft?"#fff":C.muted,opacity:saveState==="saving"?.7:1}}>
+            background:saveState==="saved"?C.green:saveState==="error"?C.red:isEditing&&hasDraft?C.accent:"rgba(255,255,255,.06)",
+            color:isEditing&&hasDraft?"#fff":C.muted,opacity:saveState==="saving"?.7:1}}>
             {saveState==="saving"?"저장 중...":saveState==="saved"?"✅ 저장됨":saveState==="error"?"❌ 오류":"💾 저장"}
           </button>
           <button onClick={handleExcel} style={{
@@ -691,6 +729,46 @@ function PlanApp(){
                     </td>
                   </tr>
                 ))}
+                {/* 목표比 차질 */}
+                <tr style={{borderBottom:`1px solid ${C.b1}18`,borderTop:`1px solid ${C.b2}30`}}>
+                  <td style={{padding:"4px 10px",color:C.muted2,fontWeight:700,fontSize:10,position:"sticky",left:0,background:C.card2}}>목표比차질</td>
+                  {mPerf.map((v,i)=>{
+                    if(i>emi)return<td key={i}><span style={{color:C.muted,fontSize:9}}>─</span></td>;
+                    const diff=v-mTgt[i];
+                    return(
+                      <td key={i} style={{padding:"4px 5px",textAlign:"right"}}>
+                        <span style={{color:diff>=0?C.green:C.red,fontSize:10,fontWeight:600}}>
+                          {diff>=0?"+":""}{Math.round(diff).toLocaleString()}
+                        </span>
+                      </td>
+                    );
+                  })}
+                  <td style={{padding:"4px 8px",textAlign:"right"}}>
+                    <span style={{color:(ytdP-ytdT)>=0?C.green:C.red,fontWeight:800,fontSize:11}}>
+                      {(ytdP-ytdT)>=0?"+":""}{Math.round(ytdP-ytdT).toLocaleString()}억
+                    </span>
+                  </td>
+                </tr>
+                {/* 전년比 차질 */}
+                <tr style={{borderBottom:`1px solid ${C.b1}18`}}>
+                  <td style={{padding:"4px 10px",color:C.muted2,fontWeight:700,fontSize:10,position:"sticky",left:0,background:C.card2}}>전년比차질</td>
+                  {mPerf.map((v,i)=>{
+                    if(i>emi)return<td key={i}><span style={{color:C.muted,fontSize:9}}>─</span></td>;
+                    const diff=v-mPrev[i];
+                    return(
+                      <td key={i} style={{padding:"4px 5px",textAlign:"right"}}>
+                        <span style={{color:diff>=0?C.green:C.red,fontSize:10,fontWeight:600}}>
+                          {diff>=0?"+":""}{Math.round(diff).toLocaleString()}
+                        </span>
+                      </td>
+                    );
+                  })}
+                  <td style={{padding:"4px 8px",textAlign:"right"}}>
+                    <span style={{color:(ytdP-ytdPrev)>=0?C.green:C.red,fontWeight:800,fontSize:11}}>
+                      {(ytdP-ytdPrev)>=0?"+":""}{Math.round(ytdP-ytdPrev).toLocaleString()}억
+                    </span>
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -750,6 +828,36 @@ function PlanApp(){
                     ))}
                   </tr>
                 ))}
+                {/* 누계 목표比 차질 */}
+                <tr style={{borderBottom:`1px solid ${C.b1}18`,borderTop:`1px solid ${C.b2}30`}}>
+                  <td style={{padding:"4px 10px",color:C.muted2,fontWeight:700,fontSize:10,position:"sticky",left:0,background:C.card2}}>목표比차질</td>
+                  {cumPerf.map((v,i)=>{
+                    if(v===null)return<td key={i}><span style={{color:C.muted,fontSize:9}}>─</span></td>;
+                    const diff=v-cumTgt[i];
+                    return(
+                      <td key={i} style={{padding:"4px 5px",textAlign:"right"}}>
+                        <span style={{color:diff>=0?C.green:C.red,fontSize:10,fontWeight:600}}>
+                          {diff>=0?"+":""}{Math.round(diff).toLocaleString()}
+                        </span>
+                      </td>
+                    );
+                  })}
+                </tr>
+                {/* 누계 전년比 차질 */}
+                <tr style={{borderBottom:`1px solid ${C.b1}18`}}>
+                  <td style={{padding:"4px 10px",color:C.muted2,fontWeight:700,fontSize:10,position:"sticky",left:0,background:C.card2}}>전년比차질</td>
+                  {cumPerf.map((v,i)=>{
+                    if(v===null||cumPrevArr[i]===null)return<td key={i}><span style={{color:C.muted,fontSize:9}}>─</span></td>;
+                    const diff=v-cumPrevArr[i];
+                    return(
+                      <td key={i} style={{padding:"4px 5px",textAlign:"right"}}>
+                        <span style={{color:diff>=0?C.green:C.red,fontSize:10,fontWeight:600}}>
+                          {diff>=0?"+":""}{Math.round(diff).toLocaleString()}
+                        </span>
+                      </td>
+                    );
+                  })}
+                </tr>
               </tbody>
             </table>
           </div>
@@ -775,14 +883,34 @@ function PlanApp(){
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,flexWrap:"wrap",gap:8}}>
             <div>
               <div style={{fontWeight:800,fontSize:13,color:C.text}}>
-                ✏️ 달성 계획
+                {isEditing?"✏️":"🔒"} 달성 계획
                 <span style={{color:C.muted,fontWeight:400,fontSize:11,marginLeft:8}}>{mode} · {part}</span>
+                <span style={{
+                  marginLeft:8,fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:4,
+                  background:isEditing?C.orange+"22":C.muted+"18",
+                  color:isEditing?C.orange:C.muted,border:`1px solid ${isEditing?C.orange+"50":C.b1}`}}>
+                  {isEditing?"편집 중":"저장됨"}
+                </span>
               </div>
-              {hasDraft&&<div style={{marginTop:4}}><Chip c={C.orange}>● 미저장 변경사항 있음</Chip></div>}
+              {hasDraft&&isEditing&&<div style={{marginTop:4}}><Chip c={C.orange}>● 미저장 변경사항 있음</Chip></div>}
             </div>
-            <div style={{display:"flex",gap:4,alignItems:"center",flexWrap:"wrap"}}>
+            <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
               <span style={{color:C.muted,fontSize:10}}>입력 연도:</span>
               {YRS.map(y=><TabBtn key={y} label={y+"년"} active={planInput===y} color={C.accent} onClick={()=>setPlanInput(y)}/>)}
+              <div style={{width:1,height:20,background:C.b1,margin:"0 2px"}}/>
+              {isEditing?(
+                <button onClick={()=>{setTextDraft({});setIsEditing(false);}} style={{
+                  padding:"5px 12px",borderRadius:6,cursor:"pointer",fontWeight:700,fontSize:11,
+                  fontFamily:"inherit",border:`1px solid ${C.muted}`,background:"transparent",color:C.muted}}>
+                  취소
+                </button>
+              ):(
+                <button onClick={()=>setIsEditing(true)} style={{
+                  padding:"5px 14px",borderRadius:6,cursor:"pointer",fontWeight:700,fontSize:11,
+                  fontFamily:"inherit",border:`1px solid ${C.accent}`,background:C.accent+"22",color:C.accent}}>
+                  ✏️ 수정
+                </button>
+              )}
             </div>
           </div>
 
@@ -846,22 +974,29 @@ function PlanApp(){
               {selMonth==="annual"?`📝 연간 달성 계획`:` 📝 ${MONTHS[selMonth]} 달성 계획`}
               <span style={{color:C.muted,fontWeight:400,marginLeft:8}}>목표 달성을 위한 전략과 실행 계획을 입력하세요</span>
             </div>
-            <textarea
+            <AutoTextarea
               value={currentText}
               onChange={e=>setText(planInput,mode,part,selMonth==="annual"?"annual":String(selMonth),e.target.value)}
-              placeholder={`예) 
-• 핵심 거래처 집중 공략: ○○가구 등 상위 10개사 목표 관리
-• 신규 개척: 신혼부부 대상 패키지 제안 확대
-• 캠페인 연계: 봄 이사철 프로모션 적극 활용
-• 리스크 관리: 전년 대비 취약 월 보완 방안 수립`}
-              style={{
-                width:"100%",minHeight:220,background:C.bg,
-                border:`1px solid ${C.accent}50`,borderRadius:8,
-                padding:"14px 16px",color:C.text,fontSize:13,lineHeight:1.7,
-                outline:"none",resize:"vertical",
-                boxShadow:`0 0 0 ${hasDraft?"2px":"0px"} ${C.accent}30`,
-                transition:"box-shadow .2s"
-              }}
+              placeholder={"예)\n• 핵심 거래처 집중 공략: ○○가구 등 상위 10개사 목표 관리\n• 신규 개척: 신혼부부 대상 패키지 제안 확대\n• 캠페인 연계: 봄 이사철 프로모션 적극 활용\n• 리스크 관리: 전년 대비 취약 월 보완 방안 수립"}
+              minHeight={220}
+              readOnly={!isEditing}
+              style={{boxShadow:isEditing&&hasDraft?`0 0 0 2px ${C.accent}30`:"none",transition:"box-shadow .2s, height .1s ease"}}
+            />
+          </div>
+
+          {/* 전년도 주요 사항 */}
+          <div style={{marginTop:10,marginBottom:10}}>
+            <div style={{color:C.muted2,fontSize:10,fontWeight:700,marginBottom:6}}>
+              📌 전년도 주요 사항
+              <span style={{color:C.muted,fontWeight:400,marginLeft:8}}>전년 실적 특이사항, 참고할 내용을 간략히 입력하세요</span>
+            </div>
+            <AutoTextarea
+              value={getText(planInput==="26"?"25":planInput==="25"?"24":"24",mode,part,selMonth==="annual"?"annual":String(selMonth))}
+              onChange={e=>setText(planInput==="26"?"25":planInput==="25"?"24":"24",mode,part,selMonth==="annual"?"annual":String(selMonth),e.target.value)}
+              placeholder={"예)\n• 1분기: 혼수 이사 수요 호조로 목표 초과달성\n• 하반기: 경기침체로 고가 제품 판매 부진\n• 연간 달성률 103%, 전년비 +5%"}
+              minHeight={100}
+              readOnly={!isEditing}
+              style={{fontSize:12,border:`1px solid ${isEditing?C.muted+"60":C.b1}`}}
             />
           </div>
 
@@ -870,13 +1005,15 @@ function PlanApp(){
             {saveState==="saved"&&<span style={{color:C.green,fontSize:11}}>✅ Firebase 저장 완료</span>}
             {saveState==="error"&&<span style={{color:C.red,fontSize:11}}>❌ 저장 오류 발생</span>}
             {hasDraft&&saveState==="idle"&&<span style={{color:C.muted,fontSize:10}}>3초 후 로컬 자동저장</span>}
-            <button onClick={handleSave} disabled={!hasDraft||saveState==="saving"} style={{
-              padding:"8px 20px",borderRadius:7,cursor:hasDraft?"pointer":"default",fontWeight:700,
-              fontSize:12,fontFamily:"inherit",border:"none",
-              background:saveState==="saving"?C.muted:hasDraft?C.accent:"rgba(255,255,255,.06)",
-              color:hasDraft?"#fff":C.muted,opacity:saveState==="saving"?.7:1}}>
-              {saveState==="saving"?"저장 중...":"💾 저장"}
-            </button>
+            {isEditing&&(
+              <button onClick={handleSave} disabled={!hasDraft||saveState==="saving"} style={{
+                padding:"8px 20px",borderRadius:7,cursor:hasDraft?"pointer":"default",fontWeight:700,
+                fontSize:12,fontFamily:"inherit",border:"none",
+                background:saveState==="saving"?C.muted:hasDraft?C.accent:"rgba(255,255,255,.06)",
+                color:hasDraft?"#fff":C.muted,opacity:saveState==="saving"?.7:1}}>
+                {saveState==="saving"?"저장 중...":"💾 저장"}
+              </button>
+            )}
           </div>
         </div>
 
