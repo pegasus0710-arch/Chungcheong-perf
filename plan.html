@@ -103,6 +103,26 @@
 <script type="text/babel">
 const {useState,useEffect,useCallback,useRef,useMemo}=React;
 
+// ── ErrorBoundary
+class ErrorBoundary extends React.Component {
+  constructor(p){super(p);this.state={err:null};}
+  static getDerivedStateFromError(e){return {err:e};}
+  componentDidCatch(e,info){console.error("PlanApp 에러:",e,info);}
+  render(){
+    if(this.state.err) return(
+      <div style={{padding:40,color:"#f07070",fontFamily:"monospace",background:"#07101f",minHeight:"100vh"}}>
+        <div style={{fontSize:18,fontWeight:700,marginBottom:16}}>⚠ 렌더 오류</div>
+        <pre style={{fontSize:12,whiteSpace:"pre-wrap",color:"#e8f4fd"}}>{String(this.state.err)}</pre>
+        <button onClick={()=>this.setState({err:null})}
+          style={{marginTop:20,padding:"8px 20px",background:"#7c83f5",color:"#fff",border:"none",borderRadius:8,cursor:"pointer",fontSize:14}}>
+          재시도
+        </button>
+      </div>
+    );
+    return this.props.children;
+  }
+}
+
 const MONTHS=["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"];
 const PARTS=["대외영업","혼수","뉴홈","입주","이사","SAC","거주중","B2B","SMB","농협","휴대폰"];
 const MODES=["판매","매출"];
@@ -456,9 +476,11 @@ function PlanApp(){
   };
 
   if(!dbReady) return(
-    <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100vh",gap:14}}>
-      <div style={{width:28,height:28,borderRadius:"50%",border:"3px solid rgba(56,182,245,.15)",borderTopColor:"#38b6f5",animation:"spin 0.9s linear infinite"}}/>
-      <span style={{color:C.muted,fontSize:12}}>데이터 불러오는 중...</span>
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
+      height:"100vh",gap:14,background:"#07101f"}}>
+      <div style={{width:36,height:36,borderRadius:"50%",border:"4px solid rgba(56,182,245,.2)",
+        borderTopColor:"#38b6f5",animation:"spin 0.9s linear infinite"}}/>
+      <span style={{color:"#6a9ab8",fontSize:14,fontWeight:600}}>데이터 불러오는 중...</span>
     </div>
   );
 
@@ -863,7 +885,7 @@ function PlanApp(){
   );
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<PlanApp/>);
+ReactDOM.createRoot(document.getElementById("root")).render(<ErrorBoundary><PlanApp/></ErrorBoundary>);
 </script>
 </body>
 </html>
