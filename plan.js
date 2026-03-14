@@ -249,19 +249,22 @@ function RichEditor({value,onChange,placeholder,minHeight=220,readOnly=false,fon
     const sel=window.getSelection();
     if(!sel||sel.rangeCount===0) return;
     const range=sel.getRangeAt(0);
-    if(range.collapsed){
-      // 선택 없을 때: 커서 위치에 span 삽입 (이후 타이핑에 적용)
+    const makeSpan=()=>{
       const span=document.createElement('span');
       span.style[cssProp]=cssVal;
-      span.innerHTML='&#8203;'; // zero-width
+      // fontSize 변경 시 line-height도 함께 설정 → 줄 높이가 글씨에 비례
+      if(cssProp==='fontSize') span.style.lineHeight='1.4';
+      return span;
+    };
+    if(range.collapsed){
+      const span=makeSpan();
+      span.innerHTML='&#8203;';
       range.insertNode(span);
       range.setStart(span,1); range.setEnd(span,1);
       sel.removeAllRanges(); sel.addRange(range);
     } else {
-      // 선택 영역 전체를 span으로 래핑
       const frag=range.extractContents();
-      const span=document.createElement('span');
-      span.style[cssProp]=cssVal;
+      const span=makeSpan();
       span.appendChild(frag);
       range.insertNode(span);
       range.selectNodeContents(span);
@@ -474,7 +477,7 @@ function RichEditor({value,onChange,placeholder,minHeight=220,readOnly=false,fon
         data-placeholder={placeholder}
         style={{
           minHeight,padding:"14px 16px",
-          color:"#e8f4fd",fontSize:14,lineHeight:1.8,
+          color:"#e8f4fd",fontSize:14,lineHeight:1.6,
           outline:"none",background:"rgba(255,255,255,.015)",
           wordBreak:"break-word",
         }}
