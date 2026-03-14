@@ -10,6 +10,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script>
     const firebaseConfig = {
       apiKey:            "AIzaSyC0q_E-VPn_Eqp6kg38pwVyOLiQ-jp32w8",
@@ -359,7 +360,7 @@ function RichEditor({value,onChange,placeholder,minHeight=220,readOnly=false,fon
             {t.label}
           </button>
         ))}
-        {readOnly&&<span style={{color:C.muted,fontSize:10}}>🔒 읽기 전용 — 수정하려면 위의 수정 버튼을 클릭하세요</span>}
+        {readOnly&&<span style={{color:C.muted,fontSize:10}}>🔒 읽기 전용 — 수정하려면 아래 수정 버튼을 클릭하세요</span>}
         {!readOnly&&<span style={{color:C.muted,fontSize:9,marginLeft:"auto"}}>Tab·Enter 자유 입력</span>}
       </div>
       <textarea ref={ref} value={value} onChange={readOnly?undefined:onChange}
@@ -369,6 +370,152 @@ function RichEditor({value,onChange,placeholder,minHeight=220,readOnly=false,fon
           outline:"none",resize:readOnly?"none":"vertical",overflow:"hidden",
           display:"block",cursor:readOnly?"default":"text",opacity:readOnly?.85:1,
           transition:"height .1s ease",...style}}/>
+    </div>
+  );
+}
+
+// ── 백업/복원 모달
+function BackupModal({onClose,perfData,planTextData,onImportJson,excelFn}){
+  const [tab,setTab]=useState("export");
+  const [msg,setMsg]=useState("");
+  const fileRef=useRef(null);
+
+  const downloadJson=()=>{
+    const blob=new Blob([JSON.stringify({perfData,planTextData},null,2)],{type:"application/json"});
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download=`충청_전체백업_${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    setMsg("✅ JSON 다운로드 완료");
+  };
+
+  const downloadPdf=()=>{
+    window.print();
+    setMsg("🖨 인쇄/PDF 저장 다이얼로그 열림");
+  };
+
+  const downloadImage=async()=>{
+    setMsg("⏳ 이미지 생성 중...");
+    try{
+      const el=document.getElementById("root");
+      const canvas=await html2canvas(el,{scale:2,useCORS:true,backgroundColor:"#07101f"});
+      const a=document.createElement("a");
+      a.href=canvas.toDataURL("image/png");
+      a.download=`충청_달성계획_${new Date().toISOString().slice(0,10)}.png`;
+      a.click();
+      setMsg("✅ 이미지 다운로드 완료");
+    }catch(e){
+      setMsg("❌ 이미지 생성 오류: "+e.message);
+    }
+  };
+
+  const handleJsonUpload=async(e)=>{
+    const file=e.target.files[0];
+    if(!file){return;}
+    try{
+      const text=await file.text();
+      const parsed=JSON.parse(text);
+      if(!parsed.perfData&&!parsed.planTextData){
+        setMsg("❌ 올바른 백업 파일이 아닙니다.");
+        return;
+      }
+      onImportJson(parsed);
+      setMsg("✅ JSON 복원 완료! Firebase에 저장하려면 저장 버튼을 누르세요.");
+    }catch(e){
+      setMsg("❌ 파일 파싱 오류: "+e.message);
+    }
+  };
+
+  const BtnRow=({icon,label,desc,onClick,c})=>(
+    <button onClick={onClick} style={{
+      display:"flex",alignItems:"center",gap:14,width:"100%",
+      padding:"14px 18px",borderRadius:10,cursor:"pointer",textAlign:"left",fontFamily:"inherit",
+      border:`1px solid ${c}40`,background:c+"0d",
+      transition:"background .15s",marginBottom:8}}
+      onMouseEnter={e=>e.currentTarget.style.background=c+"20"}
+      onMouseLeave={e=>e.currentTarget.style.background=c+"0d"}>
+      <span style={{fontSize:22,flexShrink:0}}>{icon}</span>
+      <div>
+        <div style={{color:C.text,fontWeight:700,fontSize:13}}>{label}</div>
+        <div style={{color:C.muted,fontSize:11,marginTop:2}}>{desc}</div>
+      </div>
+    </button>
+  );
+
+  return(
+    <div style={{position:"fixed",inset:0,zIndex:800,background:"rgba(0,0,0,.75)",
+      display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(4px)"}}>
+      <div style={{background:C.card,border:`1px solid ${C.b2}`,borderRadius:16,
+        width:"min(480px,92vw)",maxHeight:"85vh",overflow:"auto",
+        boxShadow:"0 8px 40px rgba(0,0,0,.6)"}}>
+        {/* 헤더 */}
+        <div style={{padding:"16px 20px",borderBottom:`1px solid ${C.b1}`,
+          display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <span style={{fontWeight:800,fontSize:15,color:C.text}}>📦 백업 · 복원</span>
+          <button onClick={onClose} style={{background:"transparent",border:"none",color:C.muted,
+            cursor:"pointer",fontSize:18,fontFamily:"inherit"}}>✕</button>
+        </div>
+        {/* 탭 */}
+        <div style={{display:"flex",borderBottom:`1px solid ${C.b1}`}}>
+          {[["export","내보내기"],["import","가져오기"]].map(([k,l])=>(
+            <button key={k} onClick={()=>setTab(k)} style={{
+              flex:1,padding:"10px",border:"none",fontFamily:"inherit",cursor:"pointer",
+              fontWeight:700,fontSize:12,
+              background:tab===k?C.bg:"transparent",
+              color:tab===k?C.accent:C.muted,
+              borderBottom:tab===k?`2px solid ${C.accent}`:"2px solid transparent"}}>
+              {l}
+            </button>
+          ))}
+        </div>
+        {/* 본문 */}
+        <div style={{padding:"20px"}}>
+          {tab==="export"&&(
+            <>
+              <BtnRow icon="📋" label="JSON 전체 백업" c={C.accent}
+                desc="실적·목표·달성계획 전체 데이터를 JSON 파일로 저장 (완전 복원 가능)"
+                onClick={downloadJson}/>
+              <BtnRow icon="📊" label="엑셀 내보내기" c={C.green}
+                desc="월별 실적·누계·KPI를 Excel 파일로 저장 (원본 소수점 포함)"
+                onClick={excelFn}/>
+              <BtnRow icon="🖼" label="이미지 저장 (PNG)" c={C.teal}
+                desc="현재 화면 전체를 고해상도 이미지로 저장"
+                onClick={downloadImage}/>
+              <BtnRow icon="🖨" label="PDF 저장 / 인쇄" c={C.orange}
+                desc="브라우저 인쇄 기능으로 PDF 저장 또는 인쇄"
+                onClick={downloadPdf}/>
+            </>
+          )}
+          {tab==="import"&&(
+            <>
+              <div style={{background:C.bg,border:`1px solid ${C.accent}40`,borderRadius:10,padding:"16px",marginBottom:12}}>
+                <div style={{color:C.text,fontWeight:700,fontSize:13,marginBottom:6}}>📋 JSON 파일로 복원</div>
+                <div style={{color:C.muted,fontSize:11,marginBottom:12,lineHeight:1.6}}>
+                  이전에 저장한 JSON 백업 파일을 선택하면 데이터가 복원됩니다.<br/>
+                  ⚠ 현재 Firebase 데이터를 덮어쓰게 됩니다.
+                </div>
+                <input ref={fileRef} type="file" accept=".json"
+                  onChange={handleJsonUpload}
+                  style={{display:"none"}}/>
+                <button onClick={()=>fileRef.current.click()} style={{
+                  width:"100%",padding:"10px",border:`2px dashed ${C.accent}60`,
+                  borderRadius:8,background:C.accent+"0a",color:C.accent,
+                  cursor:"pointer",fontWeight:700,fontSize:13,fontFamily:"inherit"}}>
+                  📂 JSON 파일 선택
+                </button>
+              </div>
+            </>
+          )}
+          {msg&&(
+            <div style={{marginTop:12,padding:"10px 14px",borderRadius:8,
+              background:msg.startsWith("❌")?"rgba(240,112,112,.15)":"rgba(45,212,136,.15)",
+              border:`1px solid ${msg.startsWith("❌")?C.red:C.green}40`,
+              color:msg.startsWith("❌")?C.red:C.green,fontSize:12,fontWeight:600}}>
+              {msg}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -400,8 +547,8 @@ function PlanApp(){
   const [selMonth,setSelMonth]=useState("annual"); // 'annual' | 0~11
   const [isEditing,setIsEditing]=useState(false);   // 수정 모드 잠금
   const [fontSize,setFontSize]=useState(14);         // 글자 크기
-  const [prevNoteYr,setPrevNoteYr]=useState("25");  // 전년도 주요사항 연도
-  const [prevNoteMonth,setPrevNoteMonth]=useState("annual");
+  const [prevNoteYr,setPrevNoteYr]=useState("25");  // 전년도 주요사항 연도 (독립)
+  const [showBackup,setShowBackup]=useState(false);
   const autoSaveTimer=useRef(null);
 
   // Firebase 로드
@@ -573,42 +720,53 @@ function PlanApp(){
   const hasDraft=Object.keys(textDraft).length>0;
   const currentText=getText(planInput,mode,part,selMonth==="annual"?"annual":String(selMonth));
 
-  // 엑셀 다운로드
+  // 엑셀 다운로드 (원본 소수점 유지)
   const handleExcel=()=>{
     const wb=XLSX.utils.book_new();
+    const fmt=v=>typeof v==="number"?parseFloat(v.toFixed(4)):v; // 소수점 4자리까지 원본 유지
     const addSheet=(name,rows)=>XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),name);
     addSheet("월별실적",[
       [`${yr}년 ${mode} - ${part} 월별 실적`],[],
       ["항목",...MONTHS,"누계"],
-      ["목표",...mTgt.map(v=>Math.round(v)),Math.round(annT)],
-      ["실적",...MONTHS.map((_,i)=>i<=emi?Math.round(mPerf[i]):""),Math.round(ytdP)],
-      ["달성률",...MONTHS.map((_,i)=>i<=emi&&mTgt[i]>0?(mPerf[i]/mTgt[i]*100).toFixed(1)+"%":""),""],
-      ["성장률",...MONTHS.map((_,i)=>i<=emi&&mPrev[i]>0?((mPerf[i]-mPrev[i])/mPrev[i]*100).toFixed(1)+"%":""),""],
-      ["전년",...MONTHS.map((_,i)=>i<=emi?Math.round(mPrev[i]):""),Math.round(ytdPrev)],
+      ["목표",...mTgt.map(fmt),fmt(annT)],
+      ["실적",...MONTHS.map((_,i)=>i<=emi?fmt(mPerf[i]):""),fmt(ytdP)],
+      ["달성률",...MONTHS.map((_,i)=>i<=emi&&mTgt[i]>0?parseFloat((mPerf[i]/mTgt[i]*100).toFixed(2)):""),""],
+      ["성장률",...MONTHS.map((_,i)=>i<=emi&&mPrev[i]>0?parseFloat(((mPerf[i]-mPrev[i])/mPrev[i]*100).toFixed(2)):""),""],
+      ["전년",...MONTHS.map((_,i)=>i<=emi?fmt(mPrev[i]):""),fmt(ytdPrev)],
     ]);
     addSheet("누계실적",[
       [`${yr}년 ${mode} - ${part} 누계 실적`],[],
       ["항목",...MONTHS],
-      ["누계목표",...cumTgt.map(v=>Math.round(v))],
-      ["누계실적",...cumPerf.map(v=>v!==null?Math.round(v):"")],
-      ["누계달성",...cumAr.map(v=>v!==null?Math.round(v)+"%":"")],
-      ["누계성장",...cumGr.map(v=>v!==null?Math.round(v)+"%":"")],
-      ["누계전년",...cumPrevArr.map(v=>v!==null?Math.round(v):"")],
+      ["누계목표",...cumTgt.map(fmt)],
+      ["누계실적",...cumPerf.map(v=>v!==null?fmt(v):"")],
+      ["누계달성",...cumAr.map(v=>v!==null?parseFloat(v.toFixed(2)):"")],
+      ["누계성장",...cumGr.map(v=>v!==null?parseFloat(v.toFixed(2)):"")],
+      ["누계전년",...cumPrevArr.map(v=>v!==null?fmt(v):"")],
     ]);
     addSheet("KPI요약",[
       [`${yr}년 ${emi>=0?MONTHS[emi]:""} 기준 — ${mode} · ${part}`],[],
-      ["항목","값"],
-      ["연간목표",annT?Math.round(annT)+"억":"─"],
-      ["누계실적",ytdP?Math.round(ytdP)+"억":"─"],
-      ["월평균",avgMonthly?avgMonthly+"억":"─"],
-      ["누계달성률",ytdAr?ytdAr+"%":"─"],
-      ["전년비성장",ytdGr?ytdGr+"%":"─"],
-      ["잔여목표",remT?Math.round(remT)+"억":"─"],
-      ["잔여월평균",needPM?needPM+"억":"─"],
-      ["CE비중",ceSharePct?ceSharePct.toFixed(1)+"%":"─"],
-      ["전년CE비중",cePrevSharePct?cePrevSharePct.toFixed(1)+"%":"─"],
+      ["항목","값(억)"],
+      ["연간목표",fmt(annT)||"─"],["누계실적",fmt(ytdP)||"─"],
+      ["월평균",fmt(avgMonthly)||"─"],["누계달성률",ytdAr?parseFloat(ytdAr):"─"],
+      ["전년비성장",ytdGr?parseFloat(ytdGr):"─"],["잔여목표",fmt(remT)||"─"],
+      ["잔여월평균",fmt(needPM)||"─"],
+      ["CE비중",ceSharePct?parseFloat(ceSharePct.toFixed(2)):"─"],
+      ["전년CE비중",cePrevSharePct?parseFloat(cePrevSharePct.toFixed(2)):"─"],
     ]);
     XLSX.writeFile(wb,`충청_${yr}년_${mode}_${part}_${new Date().toISOString().slice(0,10)}.xlsx`);
+  };
+
+  // JSON 복원
+  const handleImportJson=(parsed)=>{
+    if(parsed.perfData) window.__importedPerf=parsed.perfData;
+    if(parsed.planTextData){
+      setPlanTextData(parsed.planTextData);
+      // Firebase에도 반영
+      window.db.collection("perf").doc("main").set(
+        {planTextData:parsed.planTextData,planUpdatedAt:new Date().toISOString()},
+        {merge:true}
+      ).catch(e=>console.error("복원 저장 오류:",e));
+    }
   };
 
   if(!dbReady) return(
@@ -667,18 +825,10 @@ function PlanApp(){
               padding:"2px 6px",border:"none",background:"transparent",color:C.muted,
               cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:700}}>A+</button>
           </div>
-          <button onClick={handleSave} disabled={!isEditing||!hasDraft||saveState==="saving"} style={{
-            padding:"6px 14px",borderRadius:6,
-            cursor:isEditing&&hasDraft?"pointer":"default",fontWeight:700,
-            fontSize:11,fontFamily:"inherit",border:"none",flexShrink:0,
-            background:saveState==="saved"?C.green:saveState==="error"?C.red:isEditing&&hasDraft?C.accent:"rgba(255,255,255,.06)",
-            color:isEditing&&hasDraft?"#fff":C.muted,opacity:saveState==="saving"?.7:1}}>
-            {saveState==="saving"?"저장 중...":saveState==="saved"?"✅ 저장됨":saveState==="error"?"❌ 오류":"💾 저장"}
-          </button>
-          <button onClick={handleExcel} style={{
+          <button onClick={()=>setShowBackup(true)} style={{
             padding:"6px 14px",borderRadius:6,cursor:"pointer",fontWeight:700,fontSize:11,
-            fontFamily:"inherit",border:`1px solid ${C.green}`,background:C.green+"18",color:C.green,flexShrink:0}}>
-            📥 엑셀
+            fontFamily:"inherit",border:`1px solid ${C.teal}`,background:C.teal+"18",color:C.teal,flexShrink:0}}>
+            📦 백업
           </button>
         </div>
         {/* 파트 선택 */}
@@ -969,16 +1119,15 @@ function PlanApp(){
           ]}/>}
         </div>
 
-        {/* ── [4] 달성 계획 입력 */}
+        {/* ── [4+5] 달성 계획 + 전년도 주요사항 통합 */}
         <div style={{background:C.card2,border:`2px solid ${C.accent}44`,borderRadius:12,padding:16}}>
 
-          {/* 헤더: 연도선택 + 잠금상태 */}
+          {/* 헤더 */}
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,flexWrap:"wrap",gap:8}}>
             <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
               <span style={{fontWeight:800,fontSize:14,color:C.text}}>{isEditing?"✏️":"🔒"} 달성 계획</span>
               <span style={{color:C.muted,fontSize:11}}>{mode} · {part}</span>
-              <span style={{
-                fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:4,
+              <span style={{fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:4,
                 background:isEditing?C.orange+"28":C.muted+"18",
                 color:isEditing?C.orange:C.muted,border:`1px solid ${isEditing?C.orange+"50":C.b1}`}}>
                 {isEditing?"편집 중":"저장됨"}
@@ -992,8 +1141,9 @@ function PlanApp(){
             </div>
           </div>
 
-          {/* 월 선택 탭 */}
-          <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:14}}>
+          {/* 공통 월 선택 탭 */}
+          <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:16,
+            borderBottom:`1px solid ${C.b1}`,paddingBottom:12}}>
             <button onClick={()=>setSelMonth("annual")} style={{
               padding:"5px 12px",borderRadius:6,cursor:"pointer",fontWeight:700,fontSize:11,
               fontFamily:"inherit",border:`1px solid ${selMonth==="annual"?C.accent:C.b1}`,
@@ -1002,15 +1152,20 @@ function PlanApp(){
               연간
             </button>
             {MONTHS.map((m,i)=>{
-              const hasTxt=getText(planInput,mode,part,String(i)).length>0;
+              const hasPlan=getText(planInput,mode,part,String(i)).length>0;
+              const hasPrev=getText("prev_"+prevNoteYr,mode,part,String(i)).length>0;
               return(
                 <button key={i} onClick={()=>setSelMonth(i)} style={{
                   padding:"5px 10px",borderRadius:6,cursor:"pointer",fontWeight:700,fontSize:11,
-                  fontFamily:"inherit",border:`1px solid ${selMonth===i?color:hasTxt?color+"60":C.b1}`,
-                  background:selMonth===i?color+"22":hasTxt?color+"10":"transparent",
-                  color:selMonth===i?color:hasTxt?color+"cc":C.muted,position:"relative"}}>
+                  fontFamily:"inherit",position:"relative",
+                  border:`1px solid ${selMonth===i?color:hasPlan||hasPrev?color+"50":C.b1}`,
+                  background:selMonth===i?color+"22":hasPlan||hasPrev?color+"08":"transparent",
+                  color:selMonth===i?color:hasPlan||hasPrev?color+"bb":C.muted}}>
                   {m}
-                  {hasTxt&&selMonth!==i&&<span style={{position:"absolute",top:2,right:2,width:4,height:4,borderRadius:"50%",background:color,display:"block"}}/>}
+                  {(hasPlan||hasPrev)&&selMonth!==i&&(
+                    <span style={{position:"absolute",top:2,right:2,width:4,height:4,
+                      borderRadius:"50%",background:hasPlan?color:C.muted2,display:"block"}}/>
+                  )}
                 </button>
               );
             })}
@@ -1024,33 +1179,71 @@ function PlanApp(){
               {label:"성장 목표",val:selGrowthTarget?(gNum(selGrowthTarget)>=0?"▲":"▼")+Math.abs(gNum(selGrowthTarget)).toFixed(1)+"%":"─",
                c:selGrowthTarget?grwC(selGrowthTarget):C.muted},
               ...(selMi!==null&&selPerf>0?[{label:`${MONTHS[selMi]} 실적`,
-                val:fmtN(selPerf)+(selAr?` (${Math.round(gNum(selAr))}%)` :""),c:color}]:[]),
+                val:fmtN(selPerf)+(selAr?` (${Math.round(gNum(selAr))}%)`:""),c:color}]:[]),
             ].map(({label,val,c})=>(
-              <div key={label} style={{background:C.card,borderRadius:8,padding:"10px 16px",border:`1px solid ${C.b1}`,flex:1,minWidth:120}}>
+              <div key={label} style={{background:C.card,borderRadius:8,padding:"10px 16px",
+                border:`1px solid ${C.b1}`,flex:1,minWidth:120}}>
                 <div style={{color:C.muted,fontSize:9,fontWeight:700,marginBottom:3}}>{label}</div>
                 <div style={{color:c,fontSize:16,fontWeight:900}}>{val}</div>
               </div>
             ))}
           </div>
 
-          {/* 달성 계획 에디터 */}
-          <div style={{marginBottom:6}}>
-            <div style={{color:C.accent,fontSize:11,fontWeight:700,marginBottom:8}}>
-              📝 {selMonth==="annual"?"연간":"${MONTHS[selMonth]}"} 달성 계획
-              <span style={{color:C.muted,fontWeight:400,marginLeft:6,fontSize:10}}>({planInput}년 · {mode} · {part})</span>
+          {/* ── 달성 계획 에디터 */}
+          <div style={{marginBottom:16}}>
+            <div style={{color:C.accent,fontSize:11,fontWeight:700,marginBottom:8,
+              display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <span>📝 {selMonth==="annual"?"연간":MONTHS[selMonth]} 달성 계획
+                <span style={{color:C.muted,fontWeight:400,marginLeft:6,fontSize:10}}>
+                  ({planInput}년 · {mode} · {part})
+                </span>
+              </span>
             </div>
             <RichEditor
               value={currentText}
               onChange={e=>setText(planInput,mode,part,selMonth==="annual"?"annual":String(selMonth),e.target.value)}
               placeholder={"예)\n• 핵심 거래처 집중 공략: ○○가구 등 상위 10개사 목표 관리\n• 신규 개척: 신혼부부 대상 패키지 제안 확대\n• 캠페인 연계: 봄 이사철 프로모션 적극 활용\n• 리스크 관리: 전년 대비 취약 월 보완 방안 수립"}
-              minHeight={240}
+              minHeight={200}
               readOnly={!isEditing}
               fontSize={fontSize}
             />
           </div>
 
-          {/* 하단 버튼 바 (수정/취소/저장 한 줄) */}
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:14,flexWrap:"wrap",gap:8}}>
+          {/* ── 전년도 주요사항 에디터 */}
+          <div style={{borderTop:`1px solid ${C.b1}`,paddingTop:14,marginBottom:6}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8,flexWrap:"wrap",gap:6}}>
+              <div style={{color:C.muted2,fontSize:11,fontWeight:700}}>
+                📌 {selMonth==="annual"?"연간":MONTHS[selMonth]} 전년도 주요사항
+                <span style={{color:C.muted,fontWeight:400,marginLeft:6,fontSize:10}}>
+                  ({prevNoteYr}년 실적 특이사항)
+                </span>
+              </div>
+              <div style={{display:"flex",gap:3,alignItems:"center"}}>
+                <span style={{color:C.muted,fontSize:10}}>전년도:</span>
+                {["25","24","23"].map(y=>(
+                  <button key={y} onClick={()=>setPrevNoteYr(y)} style={{
+                    padding:"3px 8px",borderRadius:4,cursor:"pointer",fontWeight:700,fontSize:10,
+                    fontFamily:"inherit",border:`1px solid ${prevNoteYr===y?C.muted2:C.b1}`,
+                    background:prevNoteYr===y?C.muted2+"22":"transparent",
+                    color:prevNoteYr===y?C.muted2:C.muted}}>
+                    {y}년
+                  </button>
+                ))}
+              </div>
+            </div>
+            <RichEditor
+              value={getText("prev_"+prevNoteYr,mode,part,selMonth==="annual"?"annual":String(selMonth))}
+              onChange={e=>setText("prev_"+prevNoteYr,mode,part,selMonth==="annual"?"annual":String(selMonth),e.target.value)}
+              placeholder={"예)\n• 1분기: 혼수·이사 수요 호조로 초과달성\n• 하반기: 경기침체로 고가 제품 부진\n• 연간 달성률 103%, 전년비 +5%"}
+              minHeight={130}
+              readOnly={!isEditing}
+              fontSize={fontSize-1}
+            />
+          </div>
+
+          {/* ── 하단 버튼 (수정/취소/저장 하나로) */}
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+            marginTop:14,paddingTop:14,borderTop:`1px solid ${C.b1}`,flexWrap:"wrap",gap:8}}>
             <div style={{display:"flex",alignItems:"center",gap:8}}>
               {saveState==="saved"&&<span style={{color:C.green,fontSize:11,fontWeight:700}}>✅ 저장 완료</span>}
               {saveState==="error"&&<span style={{color:C.red,fontSize:11,fontWeight:700}}>❌ 저장 오류</span>}
@@ -1060,12 +1253,12 @@ function PlanApp(){
               {isEditing?(
                 <>
                   <button onClick={()=>{setTextDraft({});setIsEditing(false);}} style={{
-                    padding:"7px 16px",borderRadius:7,cursor:"pointer",fontWeight:700,fontSize:12,
+                    padding:"8px 18px",borderRadius:7,cursor:"pointer",fontWeight:700,fontSize:12,
                     fontFamily:"inherit",border:`1px solid ${C.muted}`,background:"transparent",color:C.muted}}>
                     취소
                   </button>
                   <button onClick={handleSave} disabled={!hasDraft||saveState==="saving"} style={{
-                    padding:"7px 20px",borderRadius:7,fontWeight:700,fontSize:12,fontFamily:"inherit",
+                    padding:"8px 22px",borderRadius:7,fontWeight:700,fontSize:12,fontFamily:"inherit",
                     border:"none",cursor:hasDraft?"pointer":"default",
                     background:hasDraft?C.accent:"rgba(255,255,255,.08)",
                     color:hasDraft?"#fff":C.muted,opacity:saveState==="saving"?.6:1}}>
@@ -1074,7 +1267,7 @@ function PlanApp(){
                 </>
               ):(
                 <button onClick={()=>setIsEditing(true)} style={{
-                  padding:"7px 20px",borderRadius:7,cursor:"pointer",fontWeight:700,fontSize:12,
+                  padding:"8px 22px",borderRadius:7,cursor:"pointer",fontWeight:700,fontSize:12,
                   fontFamily:"inherit",border:`1px solid ${C.accent}`,background:C.accent+"22",color:C.accent}}>
                   ✏️ 수정
                 </button>
@@ -1083,89 +1276,21 @@ function PlanApp(){
           </div>
         </div>
 
-        {/* ── [5] 전년도 주요 사항 (완전 독립 섹션) */}
-        <div style={{background:C.card2,border:`1px solid ${C.muted}30`,borderRadius:12,padding:16}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,flexWrap:"wrap",gap:8}}>
-            <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-              <span style={{fontWeight:800,fontSize:14,color:C.text}}>📌 전년도 주요 사항</span>
-              <span style={{color:C.muted,fontSize:11}}>{mode} · {part}</span>
-            </div>
-            <div style={{display:"flex",gap:4,alignItems:"center",flexWrap:"wrap"}}>
-              <span style={{color:C.muted,fontSize:10}}>연도:</span>
-              {["25","24","23"].map(y=><TabBtn key={y} label={y+"년"} active={prevNoteYr===y} color={C.muted2} onClick={()=>setPrevNoteYr(y)}/>)}
-            </div>
-          </div>
-
-          {/* 전년도 월 선택 */}
-          <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:12}}>
-            <button onClick={()=>setPrevNoteMonth("annual")} style={{
-              padding:"4px 10px",borderRadius:5,cursor:"pointer",fontWeight:700,fontSize:10,
-              fontFamily:"inherit",border:`1px solid ${prevNoteMonth==="annual"?C.muted2:C.b1}`,
-              background:prevNoteMonth==="annual"?C.muted2+"22":"transparent",
-              color:prevNoteMonth==="annual"?C.muted2:C.muted}}>
-              연간
-            </button>
-            {MONTHS.map((m,i)=>{
-              const hasTxt=getText("prev_"+prevNoteYr,mode,part,String(i)).length>0;
-              return(
-                <button key={i} onClick={()=>setPrevNoteMonth(i)} style={{
-                  padding:"4px 8px",borderRadius:5,cursor:"pointer",fontWeight:700,fontSize:10,
-                  fontFamily:"inherit",border:`1px solid ${prevNoteMonth===i?C.muted2:hasTxt?C.muted2+"50":C.b1}`,
-                  background:prevNoteMonth===i?C.muted2+"22":hasTxt?C.muted2+"0a":"transparent",
-                  color:prevNoteMonth===i?C.muted2:hasTxt?C.muted2:C.muted,position:"relative"}}>
-                  {m}
-                  {hasTxt&&prevNoteMonth!==i&&<span style={{position:"absolute",top:1,right:1,width:3,height:3,borderRadius:"50%",background:C.muted2,display:"block"}}/>}
-                </button>
-              );
-            })}
-          </div>
-
-          <div style={{marginBottom:6}}>
-            <div style={{color:C.muted2,fontSize:11,fontWeight:700,marginBottom:8}}>
-              {prevNoteMonth==="annual"?"연간":"${MONTHS[prevNoteMonth]}"} 주요 사항
-              <span style={{color:C.muted,fontWeight:400,marginLeft:6,fontSize:10}}>({prevNoteYr}년 실적 특이사항, 참고 내용)</span>
-            </div>
-            <RichEditor
-              value={getText("prev_"+prevNoteYr,mode,part,prevNoteMonth==="annual"?"annual":String(prevNoteMonth))}
-              onChange={e=>setText("prev_"+prevNoteYr,mode,part,prevNoteMonth==="annual"?"annual":String(prevNoteMonth),e.target.value)}
-              placeholder={"예)\n• 1분기: 혼수·이사 수요 호조로 목표 초과달성\n• 하반기: 경기침체로 고가 제품 판매 부진\n• 연간 달성률 103%, 전년비 +5%"}
-              minHeight={140}
-              readOnly={!isEditing}
-              fontSize={fontSize-1}
-            />
-          </div>
-
-          {/* 하단 버튼 */}
-          <div style={{display:"flex",justifyContent:"flex-end",gap:6,marginTop:12}}>
-            {isEditing?(
-              <>
-                <button onClick={()=>{setTextDraft({});setIsEditing(false);}} style={{
-                  padding:"6px 14px",borderRadius:7,cursor:"pointer",fontWeight:700,fontSize:11,
-                  fontFamily:"inherit",border:`1px solid ${C.muted}`,background:"transparent",color:C.muted}}>
-                  취소
-                </button>
-                <button onClick={handleSave} disabled={!hasDraft||saveState==="saving"} style={{
-                  padding:"6px 18px",borderRadius:7,fontWeight:700,fontSize:11,fontFamily:"inherit",
-                  border:"none",cursor:hasDraft?"pointer":"default",
-                  background:hasDraft?C.accent:"rgba(255,255,255,.08)",
-                  color:hasDraft?"#fff":C.muted,opacity:saveState==="saving"?.6:1}}>
-                  {saveState==="saving"?"저장 중...":"💾 저장"}
-                </button>
-              </>
-            ):(
-              <button onClick={()=>setIsEditing(true)} style={{
-                padding:"6px 18px",borderRadius:7,cursor:"pointer",fontWeight:700,fontSize:11,
-                fontFamily:"inherit",border:`1px solid ${C.muted2}`,background:C.muted2+"18",color:C.muted2}}>
-                ✏️ 수정
-              </button>
-            )}
-          </div>
-        </div>
-
         <div style={{color:C.muted,fontSize:10,textAlign:"center",paddingBottom:16}}>
           충청영업팀 실적관리 시스템 · 달성 계획 / 비밀번호 문의: 관리자
         </div>
       </div>
+
+      {/* 백업 모달 */}
+      {showBackup&&(
+        <BackupModal
+          onClose={()=>setShowBackup(false)}
+          perfData={perfData}
+          planTextData={planTextData}
+          onImportJson={handleImportJson}
+          excelFn={()=>{handleExcel();}}
+        />
+      )}
     </div>
   );
 }
