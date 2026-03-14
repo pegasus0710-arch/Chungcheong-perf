@@ -3245,7 +3245,7 @@ function App(){
       {/* 헤더 */}
       <div style={{background:C.surf,borderBottom:`1px solid ${C.b1}`,padding:"0 16px"}}>
         <div style={{maxWidth:1360,margin:"0 auto",display:"flex",alignItems:"center",
-          height:46,gap:isMobile?12:20}}>
+          height:isMobile?40:46,gap:isMobile?4:20}}>
           <div style={{display:"flex",alignItems:"center",gap:7,flexShrink:0}}>
             <div style={{width:24,height:24,background:`linear-gradient(135deg,${mColor},${C.accent})`,
               borderRadius:6,display:"flex",alignItems:"center",justifyContent:"center",
@@ -3260,12 +3260,14 @@ function App(){
           <nav style={{display:"flex",gap:2}}>
             {TABS.map(t=>(
               <button key={t.k} onClick={()=>setTab(t.k)} style={{
-                padding:isMobile?"6px 10px":"6px 14px",borderRadius:7,border:"none",cursor:"pointer",
+                padding:isMobile?"5px 8px":"6px 14px",borderRadius:7,border:"none",cursor:"pointer",
                 background:tab===t.k?mColor+"22":"transparent",color:tab===t.k?mColor:C.muted,
-                fontWeight:tab===t.k?800:500,fontSize:isMobile?11:12,fontFamily:"inherit",
+                fontWeight:tab===t.k?800:500,
+                fontSize:isMobile?10:12,fontFamily:"inherit",whiteSpace:"nowrap",
                 borderBottom:tab===t.k?`2px solid ${mColor}`:"2px solid transparent"}}>
-                {t.i}{!isMobile&&" "}{!isMobile&&t.l}
-                {isMobile&&<span style={{fontSize:10,marginLeft:2}}>{t.l}</span>}
+                {isMobile
+                  ? {dashboard:"대시보드",analysis:"실적분석",input:"실적입력"}[t.k]
+                  : `${t.i} ${t.l}`}
               </button>
             ))}
           </nav>
@@ -3281,7 +3283,7 @@ function App(){
           }}
           onMouseEnter={e=>{e.currentTarget.style.color="#7c83f5";e.currentTarget.style.borderBottomColor="#7c83f540";}}
           onMouseLeave={e=>{e.currentTarget.style.color=C.muted;e.currentTarget.style.borderBottomColor="transparent";}}>
-            📋{!isMobile&&" 달성계획"}
+            {isMobile?"달성":"📋 달성계획"}
           </a>
           <div style={{width:1,height:20,background:C.b1,margin:"0 4px",flexShrink:0}}/>
 
@@ -3294,7 +3296,7 @@ function App(){
           }}
           onMouseEnter={e=>{e.currentTarget.style.background=C.teal+"22";e.currentTarget.style.borderColor=C.teal;}}
           onMouseLeave={e=>{e.currentTarget.style.background=C.teal+"10";e.currentTarget.style.borderColor=C.teal+"40";}}>
-            📦{!isMobile&&" 백업"}
+            {isMobile?"백업":"📦 백업"}
           </button>
           {/* 화면 확대/축소 */}
           <div style={{display:"flex",alignItems:"center",gap:3,background:"rgba(255,255,255,.05)",
