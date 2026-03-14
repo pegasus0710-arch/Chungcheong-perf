@@ -566,7 +566,7 @@ function PlanApp(){
   const [selMonth,setSelMonth]=useState("annual"); // 'annual' | 0~11
   const [isEditing,setIsEditing]=useState(false);   // 수정 모드 잠금
   const [zoom,setZoom]=useState(()=>{
-    const saved=parseInt(localStorage.getItem('cst_font_size_v1'))||100;
+    const saved=parseInt(localStorage.getItem('cst_zoom_v2'));
     return (saved>=80&&saved<=200)?saved:100;
   }); // 화면 배율 %
   // 양방향 zoom (center 기준)
@@ -579,7 +579,7 @@ function PlanApp(){
     el.style.transform=`scale(${ratio})`;
     el.style.width=`${100/ratio}%`;
     el.style.marginLeft=`${-(100/ratio-100)/2}%`;
-    localStorage.setItem('cst_font_size_v1', String(safeZoom));
+    localStorage.setItem('cst_zoom_v2', String(safeZoom));
   },[zoom]);
   const [prevNoteYr,setPrevNoteYr]=useState("25");  // 전년도 주요사항 연도 (독립)
   const [showBackup,setShowBackup]=useState(false);

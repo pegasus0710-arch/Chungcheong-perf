@@ -12,7 +12,7 @@ const APP_VER = "v3.2";
 const TGT_PW_HASH  = "b1c9a90560020cd8f64c5a8a2c30bd2b6ce28dcff2b9e535f9da3c2d14061b68";
 const TGT_UNLOCK_KEY = "cst_tgt_unlock_v1"; // 목표+실적 통합 잠금
 // 전역 폰트 크기 (plan.html → localStorage 공유)
-const FONT_SIZE_KEY = "cst_font_size_v1";
+const FONT_SIZE_KEY = "cst_zoom_v2"; // v2: % 단위로 변경
 
 // ─── spin 애니메이션 전역 주입 (ErrorBoundary/내부 스피너용) ───
 (()=>{
@@ -3088,8 +3088,7 @@ function App(){
   const [showTgtPwModal,setShowTgtPwModal] = useState(false);
 
   const [globalZoom,setGlobalZoom] = useState(()=>{
-    const saved=parseInt(localStorage.getItem(FONT_SIZE_KEY))||100;
-    // 유효 범위 체크: 80 미만은 구버전 px값이나 잘못된 값으로 간주해 100으로 초기화
+    const saved=parseInt(localStorage.getItem(FONT_SIZE_KEY));
     return (saved>=80&&saved<=200)?saved:100;
   });
   // 양방향 zoom (center 기준)
