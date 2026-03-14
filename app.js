@@ -3130,7 +3130,9 @@ function App(){
     el.style.transformOrigin='top center';
     el.style.transform=`scale(${ratio})`;
     el.style.width=`${100/ratio}%`;
-    el.style.marginLeft=`${-(100/ratio-100)/2}%`;
+    el.style.position='relative';
+    el.style.left=`${-(100/ratio-100)/2}%`;
+    el.style.margin='0';
     localStorage.setItem(FONT_SIZE_KEY, String(safeZoom));
   },[globalZoom]);
   const isMobile = useIsMobile();
@@ -3337,7 +3339,7 @@ function App(){
             <span style={{color:mColor,fontSize:13,fontWeight:700,marginLeft:8}}>· {mode}</span>
           </h1>
         </div>
-        <div id="app-content" style={{transformOrigin:"top left",transition:"transform .15s ease"}}>
+        <div id="app-content" style={{transformOrigin:"top center",transition:"transform .15s ease",position:"relative"}}>
         <ErrorBoundary key={tab+mode}>
           {!dbReady ? (
             /* Firebase 응답 전 — 빈 데이터로 렌더 방지 */
