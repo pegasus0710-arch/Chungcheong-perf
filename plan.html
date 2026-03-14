@@ -567,7 +567,7 @@ function PlanApp(){
   const [isEditing,setIsEditing]=useState(false);   // 수정 모드 잠금
   const [zoom,setZoom]=useState(()=>{
     const saved=parseInt(localStorage.getItem('cst_font_size_v1'))||100;
-    return (saved>=50&&saved<=200)?saved:100;
+    return (saved>=80&&saved<=200)?saved:100;
   }); // 화면 배율 %
   // 양방향 zoom (center 기준)
   useEffect(()=>{
@@ -1245,7 +1245,7 @@ function PlanApp(){
               placeholder={"예)\n• 핵심 거래처 집중 공략: ○○가구 등 상위 10개사 목표 관리\n• 신규 개척: 신혼부부 대상 패키지 제안 확대\n• 캠페인 연계: 봄 이사철 프로모션 적극 활용\n• 리스크 관리: 전년 대비 취약 월 보완 방안 수립"}
               minHeight={200}
               readOnly={!isEditing}
-              fontSize={fontSize}
+              fontSize={14}
             />
           </div>
 
@@ -1277,7 +1277,7 @@ function PlanApp(){
               placeholder={"예)\n• 1분기: 혼수·이사 수요 호조로 초과달성\n• 하반기: 경기침체로 고가 제품 부진\n• 연간 달성률 103%, 전년비 +5%"}
               minHeight={130}
               readOnly={!isEditing}
-              fontSize={fontSize-1}
+              fontSize={13}
             />
           </div>
 

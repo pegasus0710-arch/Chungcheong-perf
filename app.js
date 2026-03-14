@@ -3089,8 +3089,8 @@ function App(){
 
   const [globalZoom,setGlobalZoom] = useState(()=>{
     const saved=parseInt(localStorage.getItem(FONT_SIZE_KEY))||100;
-    // 구버전 px 단위값(12~20) → 100%로 초기화
-    return (saved>=50&&saved<=200)?saved:100;
+    // 유효 범위 체크: 80 미만은 구버전 px값이나 잘못된 값으로 간주해 100으로 초기화
+    return (saved>=80&&saved<=200)?saved:100;
   });
   // 양방향 zoom (center 기준)
   useEffect(()=>{
