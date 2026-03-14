@@ -394,22 +394,26 @@ function BackupModal({onClose,perfData,planTextData,onImportJson,excelFn}){
   };
 
   const downloadPdf=()=>{
-    window.print();
-    setMsg("🖨 인쇄/PDF 저장 다이얼로그 열림");
+    onClose(); // 모달 먼저 닫기
+    setTimeout(()=>window.print(),350);
   };
 
   const downloadImage=async()=>{
-    setMsg("⏳ 이미지 생성 중...");
+    onClose(); // 모달 먼저 닫기
+    await new Promise(r=>setTimeout(r,400));
     try{
       const el=document.getElementById("root");
-      const canvas=await html2canvas(el,{scale:2,useCORS:true,backgroundColor:"#07101f"});
+      const canvas=await html2canvas(el,{
+        scale:2,useCORS:true,backgroundColor:"#07101f",
+        logging:false,
+        ignoreElements:el=>el.getAttribute&&el.getAttribute("id")==="backup-plan-modal"
+      });
       const a=document.createElement("a");
       a.href=canvas.toDataURL("image/png");
       a.download=`충청_달성계획_${new Date().toISOString().slice(0,10)}.png`;
       a.click();
-      setMsg("✅ 이미지 다운로드 완료");
     }catch(e){
-      setMsg("❌ 이미지 생성 오류: "+e.message);
+      alert("이미지 생성 오류: "+e.message);
     }
   };
 
@@ -447,7 +451,7 @@ function BackupModal({onClose,perfData,planTextData,onImportJson,excelFn}){
   );
 
   return(
-    <div style={{position:"fixed",inset:0,zIndex:800,background:"rgba(0,0,0,.75)",
+    <div id="backup-plan-modal" style={{position:"fixed",inset:0,zIndex:800,background:"rgba(0,0,0,.75)",
       display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(4px)"}}>
       <div style={{background:C.card,border:`1px solid ${C.b2}`,borderRadius:16,
         width:"min(480px,92vw)",maxHeight:"85vh",overflow:"auto",
@@ -767,6 +771,18 @@ function PlanApp(){
       ["CE비중",ceSharePct?parseFloat(ceSharePct.toFixed(2)):"─"],
       ["전년CE비중",cePrevSharePct?parseFloat(cePrevSharePct.toFixed(2)):"─"],
     ]);
+    // 달성계획 텍스트 시트 추가
+    const planRows=[["연도","파트","구분","내용"]];
+    const allPlanData={...planTextData};
+    Object.keys(allPlanData).forEach(pYr=>{
+      Object.keys(allPlanData[pYr]||{}).forEach(pPart=>{
+        Object.keys(allPlanData[pYr][pPart]||{}).forEach(mk=>{
+          const txt=allPlanData[pYr][pPart][mk];
+          if(txt)planRows.push([pYr,pPart,mk==="annual"?"연간":mk+"월",txt]);
+        });
+      });
+    });
+    if(planRows.length>1)addSheet("달성계획텍스트",planRows);
     XLSX.writeFile(wb,`충청_${yr}년_${mode}_${part}_${new Date().toISOString().slice(0,10)}.xlsx`);
   };
 

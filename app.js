@@ -1458,6 +1458,173 @@ function GroupDivider({color}){
 }
 
 // ── 목표 잠금해제 모달
+// ── 메인 백업/복원 모달
+function BackupMainModal({onClose, data, mode}){
+  const [tab,setTab]=useState("export");
+  const [msg,setMsg]=useState("");
+  const fileRef=useRef(null);
+
+  const downloadJson=()=>{
+    const blob=new Blob([JSON.stringify({perfData:data},null,2)],{type:"application/json"});
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download=`충청_실적백업_${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    setMsg("✅ JSON 백업 완료");
+  };
+
+  const downloadExcel=()=>{
+    const wb=XLSX.utils.book_new();
+    const YRS=["24","25","26"];
+    const MONTHS=["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"];
+    const KEYS=["CE","대외영업","혼수","뉴홈","입주","이사","SAC","거주중","B2B","SMB","농협","휴대폰"];
+    const sk=i=>`${i}`;
+    const g=(o,k)=>parseFloat(o?.[k])||0;
+    const derived=o=>{
+      const r={...o};
+      r.대외영업=["혼수","입주","이사","SAC","거주중","SMB","농협","휴대폰"].reduce((s,k)=>s+g(o,k),0);
+      r.뉴홈=g(o,"입주")+g(o,"이사");
+      r.B2B=g(o,"SMB")+g(o,"농협")+g(o,"휴대폰");
+      return r;
+    };
+    ["매출","판매"].forEach(md=>{
+      YRS.forEach(yr=>{
+        const pD=data[yr]?.[md]?.perf||{};
+        const tD=data[yr]?.[md]?.target||{};
+        const rows=[["항목",...MONTHS,"연간합계"]];
+        ["목표","실적"].forEach(type=>{
+          const d=type==="목표"?tD:pD;
+          KEYS.forEach(k=>{
+            const vals=MONTHS.map((_,i)=>parseFloat(derived(d[sk(i)]||{})[k]||0)||"");
+            const sum=vals.reduce((a,b)=>a+(parseFloat(b)||0),0);
+            rows.push([`${type}_${k}`,...vals,sum||""]);
+          });
+        });
+        XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),`${yr}년_${md}`);
+      });
+    });
+    XLSX.writeFile(wb,`충청_실적백업_${new Date().toISOString().slice(0,10)}.xlsx`);
+    setMsg("✅ 엑셀 백업 완료");
+  };
+
+  const downloadPdf=()=>{
+    onClose();
+    setTimeout(()=>window.print(),300);
+  };
+
+  const downloadImage=async()=>{
+    setMsg("⏳ 이미지 생성 중...");
+    onClose();
+    await new Promise(r=>setTimeout(r,400));
+    try{
+      const el=document.getElementById("root");
+      const canvas=await (window.html2canvas||html2canvas)(el,{scale:2,useCORS:true,backgroundColor:"#07101f",ignoreElements:e=>e.id==="backup-modal"});
+      const a=document.createElement("a");
+      a.href=canvas.toDataURL("image/png");
+      a.download=`충청_메인화면_${new Date().toISOString().slice(0,10)}.png`;
+      a.click();
+    }catch(e){
+      alert("이미지 생성 오류: "+e.message);
+    }
+  };
+
+  const handleJsonUpload=async(e)=>{
+    const file=e.target.files[0];
+    if(!file)return;
+    try{
+      const text=await file.text();
+      const parsed=JSON.parse(text);
+      if(!parsed.perfData){setMsg("❌ 올바른 백업 파일이 아닙니다.");return;}
+      // Firebase에 복원
+      await window.db.collection("perf").doc("main").set({perfData:parsed.perfData},{merge:true});
+      setMsg("✅ 복원 완료! 페이지를 새로고침하세요.");
+    }catch(e){setMsg("❌ 파일 오류: "+e.message);}
+  };
+
+  const BtnRow=({icon,label,desc,onClick,c})=>(
+    <button onClick={onClick} style={{
+      display:"flex",alignItems:"center",gap:14,width:"100%",padding:"13px 16px",
+      borderRadius:9,cursor:"pointer",textAlign:"left",fontFamily:"inherit",
+      border:`1px solid ${c}40`,background:c+"0d",marginBottom:7,
+      transition:"background .15s"}}
+      onMouseEnter={e=>e.currentTarget.style.background=c+"20"}
+      onMouseLeave={e=>e.currentTarget.style.background=c+"0d"}>
+      <span style={{fontSize:20,flexShrink:0}}>{icon}</span>
+      <div>
+        <div style={{color:C.text,fontWeight:700,fontSize:13}}>{label}</div>
+        <div style={{color:C.muted,fontSize:11,marginTop:2}}>{desc}</div>
+      </div>
+    </button>
+  );
+
+  return(
+    <div id="backup-modal" style={{position:"fixed",inset:0,zIndex:1000,background:"rgba(0,0,0,.75)",
+      display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(4px)"}}>
+      <div style={{background:C.card,border:`1px solid ${C.b2}`,borderRadius:16,
+        width:"min(460px,92vw)",maxHeight:"85vh",overflow:"auto",
+        boxShadow:"0 8px 40px rgba(0,0,0,.6)"}}>
+        <div style={{padding:"16px 20px",borderBottom:`1px solid ${C.b1}`,
+          display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <span style={{fontWeight:800,fontSize:15,color:C.text}}>📦 백업 · 복원</span>
+          <button onClick={onClose} style={{background:"transparent",border:"none",
+            color:C.muted,cursor:"pointer",fontSize:18}}>✕</button>
+        </div>
+        <div style={{display:"flex",borderBottom:`1px solid ${C.b1}`}}>
+          {[["export","내보내기"],["import","가져오기"]].map(([k,l])=>(
+            <button key={k} onClick={()=>setTab(k)} style={{
+              flex:1,padding:"10px",border:"none",fontFamily:"inherit",cursor:"pointer",
+              fontWeight:700,fontSize:12,
+              background:tab===k?C.bg:"transparent",
+              color:tab===k?C.teal:C.muted,
+              borderBottom:tab===k?`2px solid ${C.teal}`:"2px solid transparent"}}>
+              {l}
+            </button>
+          ))}
+        </div>
+        <div style={{padding:"16px"}}>
+          {tab==="export"&&(
+            <>
+              <BtnRow icon="📋" label="JSON 전체 백업" c={C.teal}
+                desc="실적·목표 전체 데이터를 JSON으로 저장 (완전 복원 가능)"
+                onClick={downloadJson}/>
+              <BtnRow icon="📊" label="엑셀 내보내기" c={C.green}
+                desc="연도·모드별 실적/목표 데이터를 Excel로 저장"
+                onClick={downloadExcel}/>
+              <BtnRow icon="🖼" label="이미지 저장 (PNG)" c={C.blue}
+                desc="현재 화면 전체를 고해상도 이미지로 저장"
+                onClick={downloadImage}/>
+              <BtnRow icon="🖨" label="PDF 저장 / 인쇄" c={C.orange}
+                desc="브라우저 인쇄 기능으로 PDF 저장 또는 인쇄"
+                onClick={downloadPdf}/>
+            </>
+          )}
+          {tab==="import"&&(
+            <div style={{background:C.bg,border:`1px solid ${C.teal}40`,borderRadius:10,padding:"16px"}}>
+              <div style={{color:C.text,fontWeight:700,fontSize:13,marginBottom:6}}>📋 JSON 파일로 복원</div>
+              <div style={{color:C.muted,fontSize:11,marginBottom:12,lineHeight:1.6}}>
+                이전에 저장한 JSON 백업 파일을 선택하면 Firebase에 복원됩니다.<br/>
+                ⚠ 현재 데이터를 덮어씁니다.
+              </div>
+              <input ref={fileRef} type="file" accept=".json" onChange={handleJsonUpload} style={{display:"none"}}/>
+              <button onClick={()=>fileRef.current.click()} style={{
+                width:"100%",padding:"10px",border:`2px dashed ${C.teal}60`,
+                borderRadius:8,background:C.teal+"0a",color:C.teal,
+                cursor:"pointer",fontWeight:700,fontSize:13,fontFamily:"inherit"}}>
+                📂 JSON 파일 선택
+              </button>
+            </div>
+          )}
+          {msg&&<div style={{marginTop:12,padding:"10px 14px",borderRadius:8,
+            background:msg.startsWith("❌")?"rgba(240,112,112,.12)":"rgba(45,212,136,.12)",
+            color:msg.startsWith("❌")?C.red:C.green,fontSize:12,fontWeight:600}}>
+            {msg}
+          </div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function TargetUnlockModal({onSuccess,onClose,title="목표 입력 잠금 해제",hashToMatch=TGT_PW_HASH}){
   const [pw,setPw]=useState("");
   const [err,setErr]=useState("");
@@ -1599,10 +1766,13 @@ function InputTab({data,setData,mode,onSave,saveState,hasUnsaved,onImport,isTarg
           position:"relative",
         }}>
           {!isTargetUnlocked&&(
-            <div style={{position:"absolute",top:3,right:5,zIndex:2,cursor:"pointer"}}
-              onClick={onRequestTargetUnlock}>
-              <span style={{color:C.muted,fontSize:9}}>🔒</span>
-            </div>
+            <button onClick={onRequestTargetUnlock} style={{
+              position:"absolute",top:3,right:4,zIndex:5,cursor:"pointer",
+              background:"rgba(245,185,66,.15)",border:"1px solid rgba(245,185,66,.4)",
+              borderRadius:4,padding:"1px 5px",fontSize:9,fontFamily:"inherit",color:"#f5b942",
+              fontWeight:700,lineHeight:1.4}}>
+              🔒
+            </button>
           )}
           <div style={{display:"flex",alignItems:"center",gap:6}}>
             <span style={{color:isTargetUnlocked?mColor:C.muted,fontSize:9,fontWeight:700,width:20,flexShrink:0}}>실적</span>
@@ -1636,10 +1806,13 @@ function InputTab({data,setData,mode,onSave,saveState,hasUnsaved,onImport,isTarg
             position:"relative",
           }}>
             {!isTargetUnlocked&&(
-              <div style={{position:"absolute",top:3,right:5,zIndex:2,cursor:"pointer"}}
-                onClick={onRequestTargetUnlock}>
-                <span style={{color:C.muted,fontSize:9}}>🔒</span>
-              </div>
+              <button onClick={onRequestTargetUnlock} style={{
+                position:"absolute",top:3,right:4,zIndex:5,cursor:"pointer",
+                background:"rgba(59,130,246,.12)",border:"1px solid rgba(59,130,246,.35)",
+                borderRadius:4,padding:"1px 5px",fontSize:9,fontFamily:"inherit",color:C.blue,
+                fontWeight:700,lineHeight:1.4}}>
+                🔒
+              </button>
             )}
             <div style={{display:"flex",alignItems:"center",gap:6}}>
               <span style={{color:isTargetUnlocked?C.blue:C.muted,fontSize:9,fontWeight:700,width:20,flexShrink:0}}>목표</span>
@@ -3110,6 +3283,7 @@ function App(){
   const [dbReady,   setDbReady]   = useState(false);   // ← 추가: Firebase 응답 완료 여부
   const [showReport,setShowReport]= useState(false);
   const [showImport,setShowImport]= useState(false);
+  const [showBackupMain,setShowBackupMain] = useState(false);
   const [isTargetUnlocked,setIsTargetUnlocked] = useState(
     ()=>sessionStorage.getItem(TGT_UNLOCK_KEY)==="1"
   );
@@ -3272,11 +3446,21 @@ function App(){
             background:"#f5b94210",color:"#f5b942",fontWeight:700,fontSize:11,
             cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",gap:5,
             transition:"all .15s",marginLeft:4,
-            boxShadow:"0 0 0 0 #f5b94240",
           }}
           onMouseEnter={e=>{e.currentTarget.style.background="#f5b94222";e.currentTarget.style.borderColor="#f5b942";}}
           onMouseLeave={e=>{e.currentTarget.style.background="#f5b94210";e.currentTarget.style.borderColor="#f5b94240";}}>
             🖨️{!isMobile&&" 레포트"}
+          </button>
+          {/* 백업 버튼 */}
+          <button onClick={()=>setShowBackupMain(true)} style={{
+            padding:"5px 12px",borderRadius:7,border:`1px solid ${C.teal}40`,
+            background:C.teal+"10",color:C.teal,fontWeight:700,fontSize:11,
+            cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",gap:5,
+            transition:"all .15s",
+          }}
+          onMouseEnter={e=>{e.currentTarget.style.background=C.teal+"22";e.currentTarget.style.borderColor=C.teal;}}
+          onMouseLeave={e=>{e.currentTarget.style.background=C.teal+"10";e.currentTarget.style.borderColor=C.teal+"40";}}>
+            📦{!isMobile&&" 백업"}
           </button>
           {/* 폰트 크기 조절 */}
           <div style={{display:"flex",alignItems:"center",gap:3,background:"rgba(255,255,255,.05)",
@@ -3372,6 +3556,9 @@ function App(){
       {/* 레포트 모달 */}
       {showReport&&(
         <ReportModal onClose={()=>setShowReport(false)} mode={mode} tab={tab}/>
+      )}
+      {showBackupMain&&(
+        <BackupMainModal onClose={()=>setShowBackupMain(false)} data={data} mode={mode}/>
       )}
       {/* JSON 가져오기 모달 */}
       {showImport&&(
