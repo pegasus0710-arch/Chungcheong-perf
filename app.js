@@ -9,16 +9,32 @@
 const { useState, useEffect, useCallback, useMemo, useRef } = React;
 const APP_VER = "v3.1";
 // 목표 입력 잠금 비번 (SHA-256) — 기본값: tgt2025!
-const TGT_PW_HASH = "c5b73f68877be4d57580ed9003b101f2483cb6e108e73ed07f7f180d485bb59a";
-const TGT_UNLOCK_KEY = "cst_tgt_unlock_v1"; // sessionStorage — 탭 닫으면 초기화
+const TGT_PW_HASH  = "c5b73f68877be4d57580ed9003b101f2483cb6e108e73ed07f7f180d485bb59a";
+const TGT_UNLOCK_KEY = "cst_tgt_unlock_v1";
+// 실적 입력 잠금 비번 (기본값: perf2025!)
+const PERF_PW_HASH = "ab507ee58016d69020db20097985c716987ed43d9b05655c0e84ab5b7633d6a9";
+const PERF_UNLOCK_KEY = "cst_perf_unlock_v1";
+// 전역 폰트 크기 (plan.html → localStorage 공유)
+const FONT_SIZE_KEY = "cst_font_size_v1";
 
 // ─── spin 애니메이션 전역 주입 (ErrorBoundary/내부 스피너용) ───
 (()=>{
   if(!document.getElementById("cst-spin-style")){
     const s=document.createElement("style");
     s.id="cst-spin-style";
-    s.textContent="@keyframes spin{to{transform:rotate(360deg)}}@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}";
+    s.textContent=":root{--app-fs:15px;--app-fs-sm:13px;--app-fs-xs:11px}"+
+      "#root{font-size:var(--app-fs)}"+
+      "#root .tbl-cell{font-size:var(--app-fs-sm)}"+
+      "@keyframes spin{to{transform:rotate(360deg)}}"+
+      "@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}";
     document.head.appendChild(s);
+  }
+  // 저장된 폰트 크기 즉시 적용
+  const saved=parseInt(localStorage.getItem("cst_font_size_v1"));
+  if(saved&&saved>=12&&saved<=19){
+    document.documentElement.style.setProperty("--app-fs",saved+"px");
+    document.documentElement.style.setProperty("--app-fs-sm",(saved-2)+"px");
+    document.documentElement.style.setProperty("--app-fs-xs",(saved-4)+"px");
   }
 })();
 
@@ -1453,7 +1469,7 @@ function GroupDivider({color}){
 }
 
 // ── 목표 잠금해제 모달
-function TargetUnlockModal({onSuccess,onClose}){
+function TargetUnlockModal({onSuccess,onClose,title="목표 입력 잠금 해제",hashToMatch=TGT_PW_HASH}){
   const [pw,setPw]=useState("");
   const [err,setErr]=useState("");
   const [shake,setShake]=useState(false);
@@ -1464,7 +1480,7 @@ function TargetUnlockModal({onSuccess,onClose}){
     if(!pw){setErr("비밀번호를 입력해주세요.");return;}
     const buf=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(pw));
     const hash=Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
-    if(hash===TGT_PW_HASH){
+    if(hash===hashToMatch){
       onSuccess();
     } else {
       setErr("비밀번호가 올바르지 않습니다.");
@@ -1483,7 +1499,7 @@ function TargetUnlockModal({onSuccess,onClose}){
         animation:shake?"shake .35s ease":"none",
         boxShadow:`0 0 40px ${C.blue}30`}}>
         <div style={{fontSize:28,marginBottom:8}}>🔐</div>
-        <div style={{fontWeight:800,fontSize:15,color:C.text,marginBottom:4}}>목표 입력 잠금 해제</div>
+        <div style={{fontWeight:800,fontSize:15,color:C.text,marginBottom:4}}>{title}</div>
         <div style={{color:C.muted,fontSize:11,marginBottom:20}}>관리자 비밀번호를 입력하세요</div>
         <input
           ref={inputRef} type="password" value={pw}
@@ -1512,7 +1528,7 @@ function TargetUnlockModal({onSuccess,onClose}){
   );
 }
 
-function InputTab({data,setData,mode,onSave,saveState,hasUnsaved,onImport,isTargetUnlocked,onRequestTargetUnlock,onTargetLock}){
+function InputTab({data,setData,mode,onSave,saveState,hasUnsaved,onImport,isTargetUnlocked,onRequestTargetUnlock,onTargetLock,isPerfUnlocked,onRequestPerfUnlock,onPerfLock}){
   const [yr,setYr]               = useState("26");
   const [mi,setMi]               = useState(0);
   const [inputMode,setInputMode] = useState("single");
@@ -1588,13 +1604,21 @@ function InputTab({data,setData,mode,onSave,saveState,hasUnsaved,onImport,isTarg
 
         {/* ── 실적 셀: 입력 + 달성률 + 성장률 ── */}
         <div style={{
-          background:mColor+"0d",border:`1px solid ${mColor}33`,borderRadius:7,
+          background:isPerfUnlocked?mColor+"0d":"rgba(255,255,255,.03)",
+          border:`1px solid ${isPerfUnlocked?mColor+"33":C.b1}`,borderRadius:7,
           padding:"5px 8px",display:"flex",flexDirection:"column",gap:2,
+          position:"relative",
         }}>
+          {!isPerfUnlocked&&(
+            <div style={{position:"absolute",top:3,right:5,zIndex:2,cursor:"pointer"}}
+              onClick={onRequestPerfUnlock}>
+              <span style={{color:C.muted,fontSize:9}}>🔒</span>
+            </div>
+          )}
           <div style={{display:"flex",alignItems:"center",gap:6}}>
-            <span style={{color:mColor,fontSize:9,fontWeight:700,width:20,flexShrink:0}}>실적</span>
+            <span style={{color:isPerfUnlocked?mColor:C.muted,fontSize:9,fontWeight:700,width:20,flexShrink:0}}>실적</span>
             <NumInput value={row.auto?pv:pD[sk(mi)]?.[row.key]}
-              readOnly={row.auto} color={row.gc||mColor}
+              readOnly={row.auto||!isPerfUnlocked} color={isPerfUnlocked?row.gc||mColor:C.muted}
               onChange={v=>setVal("perf",mi,row.key,v)}/>
             <span style={{color:C.muted,fontSize:9,flexShrink:0}}>억</span>
           </div>
@@ -1662,7 +1686,7 @@ function InputTab({data,setData,mode,onSave,saveState,hasUnsaved,onImport,isTarg
   );
 
   /* ── 일괄 입력용 데이터 행 ── */
-  const BulkDataRow = ({row, type, colorOverride})=>{
+  const BulkDataRow = ({row, type, colorOverride, perfLocked=false})=>{
     const d     = type==="perf" ? pD : tD;
     const other = type==="perf" ? tD : null;
     const clr   = colorOverride || (type==="perf"?mColor:C.blue);
@@ -1721,14 +1745,16 @@ function InputTab({data,setData,mode,onSave,saveState,hasUnsaved,onImport,isTarg
                 <div>
                   <input type="number" step="any" min="0" placeholder="0"
                     value={d[sk(mi2)]?.[row.key]??""}
-                    onChange={e=>setVal(type,mi2,row.key,e.target.value)}
+                    readOnly={type==="perf"&&perfLocked}
+                    onChange={type==="perf"&&perfLocked?undefined:e=>setVal(type,mi2,row.key,e.target.value)}
                     style={{
                       width:"100%",background:C.bg,
-                      border:`1px solid ${C.b1}`,borderRadius:5,
-                      padding:"6px 8px",color:clr,fontSize:12,
+                      border:`1px solid ${type==="perf"&&perfLocked?C.b1:C.b1}`,borderRadius:5,
+                      padding:"6px 8px",color:type==="perf"&&perfLocked?C.muted2:clr,fontSize:12,
                       outline:"none",textAlign:"right",fontFamily:"inherit",
+                      cursor:type==="perf"&&perfLocked?"default":"text",
                     }}
-                    onFocus={e=>{e.target.style.borderColor=clr;e.target.style.boxShadow=`0 0 0 2px ${clr}22`;}}
+                    onFocus={e=>{if(!(type==="perf"&&perfLocked)){e.target.style.borderColor=clr;e.target.style.boxShadow=`0 0 0 2px ${clr}22`;}}}
                     onBlur={e=>{e.target.style.borderColor=C.b1;e.target.style.boxShadow="none";}}
                   />
                   {/* 달성률 (실적) */}
@@ -1924,7 +1950,22 @@ function InputTab({data,setData,mode,onSave,saveState,hasUnsaved,onImport,isTarg
                 boxShadow:`0 0 8px ${mColor}`}}/>
               <span style={{color:mColor,fontWeight:900,fontSize:14}}>📊 실적 입력</span>
               <span style={{color:C.muted,fontSize:11}}>{yr}년 · 억원 단위</span>
-              {prevYr&&<span style={{color:C.muted,fontSize:10,marginLeft:"auto"}}>
+              {isPerfUnlocked?(
+                <button onClick={onPerfLock} style={{
+                  marginLeft:"auto",padding:"4px 10px",borderRadius:6,
+                  border:`1px solid ${C.muted}`,background:"transparent",
+                  color:C.muted,cursor:"pointer",fontSize:10,fontWeight:700,fontFamily:"inherit"}}>
+                  🔒 잠금
+                </button>
+              ):(
+                <button onClick={onRequestPerfUnlock} style={{
+                  marginLeft:"auto",padding:"4px 12px",borderRadius:6,
+                  border:`1px solid ${mColor}`,background:mColor+"22",
+                  color:mColor,cursor:"pointer",fontSize:10,fontWeight:700,fontFamily:"inherit"}}>
+                  🔓 잠금 해제
+                </button>
+              )}
+              {prevYr&&isPerfUnlocked&&<span style={{color:C.muted,fontSize:10}}>
                 셀 하단: 목표달성률 · 전{prevYr}년비 성장률 자동표시
               </span>}
             </div>
@@ -1948,7 +1989,7 @@ function InputTab({data,setData,mode,onSave,saveState,hasUnsaved,onImport,isTarg
                     <React.Fragment key={row.key}>
                       {/* 그룹 시작선 */}
                       {row.gs&&ri>0&&<GroupDivider color={row.gc}/>}
-                      <BulkDataRow row={row} type="perf"/>
+                      <BulkDataRow row={row} type="perf" perfLocked={!isPerfUnlocked}/>
                     </React.Fragment>
                   ))}
                 </tbody>
@@ -3110,6 +3151,20 @@ function App(){
     ()=>sessionStorage.getItem(TGT_UNLOCK_KEY)==="1"
   );
   const [showTgtPwModal,setShowTgtPwModal] = useState(false);
+  const [isPerfUnlocked,setIsPerfUnlocked] = useState(
+    ()=>sessionStorage.getItem(PERF_UNLOCK_KEY)==="1"
+  );
+  const [showPerfPwModal,setShowPerfPwModal] = useState(false);
+  const [globalFontSize,setGlobalFontSize] = useState(
+    ()=>parseInt(localStorage.getItem(FONT_SIZE_KEY))||15
+  );
+  // CSS 변수로 전역 반영
+  useEffect(()=>{
+    document.documentElement.style.setProperty('--app-fs', globalFontSize+'px');
+    document.documentElement.style.setProperty('--app-fs-sm', (globalFontSize-2)+'px');
+    document.documentElement.style.setProperty('--app-fs-xs', (globalFontSize-4)+'px');
+    localStorage.setItem(FONT_SIZE_KEY, globalFontSize);
+  },[globalFontSize]);
   const isMobile = useIsMobile();
 
   // 레포트용 전역 데이터 노출
@@ -3261,6 +3316,20 @@ function App(){
           onMouseLeave={e=>{e.currentTarget.style.background="#f5b94210";e.currentTarget.style.borderColor="#f5b94240";}}>
             🖨️{!isMobile&&" 레포트"}
           </button>
+          {/* 폰트 크기 조절 */}
+          <div style={{display:"flex",alignItems:"center",gap:3,background:"rgba(255,255,255,.05)",
+            borderRadius:7,padding:"3px 6px",border:`1px solid ${C.b1}`}}>
+            <span style={{color:C.muted2,fontSize:13,fontWeight:900,marginRight:1}}>T</span>
+            <button onClick={()=>setGlobalFontSize(Math.max(12,globalFontSize-1))} style={{
+              padding:"2px 7px",borderRadius:4,border:`1px solid ${C.b1}`,
+              background:"rgba(255,255,255,.04)",color:C.muted2,
+              cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:700}}>−</button>
+            <span style={{color:C.text,fontSize:10,fontWeight:700,minWidth:26,textAlign:"center"}}>{globalFontSize}px</span>
+            <button onClick={()=>setGlobalFontSize(Math.min(18,globalFontSize+1))} style={{
+              padding:"2px 7px",borderRadius:4,border:`1px solid ${C.b1}`,
+              background:"rgba(255,255,255,.04)",color:C.muted2,
+              cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:700}}>+</button>
+          </div>
           {/* 달성계획 링크 버튼 */}
           <a href="plan.html" style={{
             padding:"5px 12px",borderRadius:7,border:`1px solid #7c83f540`,
@@ -3313,6 +3382,9 @@ function App(){
               isTargetUnlocked={isTargetUnlocked}
               onRequestTargetUnlock={()=>setShowTgtPwModal(true)}
               onTargetLock={()=>{sessionStorage.removeItem(TGT_UNLOCK_KEY);setIsTargetUnlocked(false);}}
+              isPerfUnlocked={isPerfUnlocked}
+              onRequestPerfUnlock={()=>setShowPerfPwModal(true)}
+              onPerfLock={()=>{sessionStorage.removeItem(PERF_UNLOCK_KEY);setIsPerfUnlocked(false);}}
               />}
             </>
           )}
@@ -3324,6 +3396,14 @@ function App(){
         <TargetUnlockModal
           onSuccess={()=>{sessionStorage.setItem(TGT_UNLOCK_KEY,"1");setIsTargetUnlocked(true);setShowTgtPwModal(false);}}
           onClose={()=>setShowTgtPwModal(false)}
+        />
+      )}
+      {showPerfPwModal&&(
+        <TargetUnlockModal
+          title="실적 입력 잠금 해제"
+          hashToMatch={PERF_PW_HASH}
+          onSuccess={()=>{sessionStorage.setItem(PERF_UNLOCK_KEY,"1");setIsPerfUnlocked(true);setShowPerfPwModal(false);}}
+          onClose={()=>setShowPerfPwModal(false)}
         />
       )}
 
