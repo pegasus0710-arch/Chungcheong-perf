@@ -1551,9 +1551,10 @@ function PlanApp(){
                   background:"#0a1628",borderRadius:8,overflow:"hidden",
                   border:`1px solid ${c}30`,flex:1,minWidth:110}}>
                   <div style={{background:bg||"rgba(255,255,255,.04)",padding:"5px 12px",
-                    color:c,fontSize:9,fontWeight:800,letterSpacing:".4px",
+                    color:c,fontSize:9,fontWeight:800,letterSpacing:".4px",textAlign:"center",
                     borderBottom:"1px solid rgba(255,255,255,.06)"}}>{label}</div>
-                  <div style={{padding:"10px 12px"}}>
+                  <div style={{padding:"10px 12px",textAlign:"center",display:"flex",
+                    flexDirection:"column",alignItems:"center"}}>
                     <div style={{color:c,fontSize:18,fontWeight:900,letterSpacing:"-.5px"}}>{val}</div>
                     {sub&&<div style={{color:c,fontSize:11,fontWeight:700,marginTop:2,opacity:.8}}>{sub}</div>}
                   </div>
