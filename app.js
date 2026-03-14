@@ -8,13 +8,16 @@
    ═══════════════════════════════════════════════ */
 const { useState, useEffect, useCallback, useMemo, useRef } = React;
 const APP_VER = "v3.1";
+// 목표 입력 잠금 비번 (SHA-256) — 기본값: tgt2025!
+const TGT_PW_HASH = "c5b73f68877be4d57580ed9003b101f2483cb6e108e73ed07f7f180d485bb59a";
+const TGT_UNLOCK_KEY = "cst_tgt_unlock_v1"; // sessionStorage — 탭 닫으면 초기화
 
 // ─── spin 애니메이션 전역 주입 (ErrorBoundary/내부 스피너용) ───
 (()=>{
   if(!document.getElementById("cst-spin-style")){
     const s=document.createElement("style");
     s.id="cst-spin-style";
-    s.textContent="@keyframes spin{to{transform:rotate(360deg)}}";
+    s.textContent="@keyframes spin{to{transform:rotate(360deg)}}@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}";
     document.head.appendChild(s);
   }
 })();
@@ -1449,7 +1452,67 @@ function GroupDivider({color}){
   );
 }
 
-function InputTab({data,setData,mode,onSave,saveState,hasUnsaved,onImport}){
+// ── 목표 잠금해제 모달
+function TargetUnlockModal({onSuccess,onClose}){
+  const [pw,setPw]=useState("");
+  const [err,setErr]=useState("");
+  const [shake,setShake]=useState(false);
+  const inputRef=useRef(null);
+  useEffect(()=>{ setTimeout(()=>inputRef.current&&inputRef.current.focus(),80); },[]);
+
+  const tryUnlock=async()=>{
+    if(!pw){setErr("비밀번호를 입력해주세요.");return;}
+    const buf=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(pw));
+    const hash=Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
+    if(hash===TGT_PW_HASH){
+      onSuccess();
+    } else {
+      setErr("비밀번호가 올바르지 않습니다.");
+      setPw("");
+      setShake(true);
+      setTimeout(()=>setShake(false),400);
+    }
+  };
+
+  return(
+    <div style={{position:"fixed",inset:0,zIndex:900,background:"rgba(0,0,0,.7)",
+      display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(4px)"}}>
+      <div style={{
+        background:C.card,border:`1px solid ${C.blue}50`,borderRadius:16,
+        padding:"32px 36px",textAlign:"center",maxWidth:320,width:"90%",
+        animation:shake?"shake .35s ease":"none",
+        boxShadow:`0 0 40px ${C.blue}30`}}>
+        <div style={{fontSize:28,marginBottom:8}}>🔐</div>
+        <div style={{fontWeight:800,fontSize:15,color:C.text,marginBottom:4}}>목표 입력 잠금 해제</div>
+        <div style={{color:C.muted,fontSize:11,marginBottom:20}}>관리자 비밀번호를 입력하세요</div>
+        <input
+          ref={inputRef} type="password" value={pw}
+          onChange={e=>{setPw(e.target.value);setErr("");}}
+          onKeyDown={e=>e.key==="Enter"&&tryUnlock()}
+          placeholder="••••••••"
+          style={{width:"100%",background:C.bg,border:`1px solid ${err?C.red:C.b2}`,
+            borderRadius:8,padding:"10px 14px",color:C.text,fontSize:15,
+            letterSpacing:2,outline:"none",fontFamily:"inherit",
+            transition:"border-color .2s",textAlign:"center"}}/>
+        {err&&<div style={{color:C.red,fontSize:11,marginTop:6}}>{err}</div>}
+        <div style={{display:"flex",gap:8,marginTop:14}}>
+          <button onClick={onClose} style={{flex:1,padding:"9px",border:`1px solid ${C.b2}`,
+            borderRadius:8,background:"transparent",color:C.muted,
+            cursor:"pointer",fontWeight:700,fontSize:12,fontFamily:"inherit"}}>
+            취소
+          </button>
+          <button onClick={tryUnlock} style={{flex:2,padding:"9px",border:"none",
+            borderRadius:8,background:C.blue,color:"#fff",
+            cursor:"pointer",fontWeight:700,fontSize:12,fontFamily:"inherit"}}>
+            잠금 해제
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InputTab({data,setData,mode,onSave,saveState,hasUnsaved,onImport,isTargetUnlocked,onRequestTargetUnlock,onTargetLock}){
   const [yr,setYr]               = useState("26");
   const [mi,setMi]               = useState(0);
   const [inputMode,setInputMode] = useState("single");
@@ -1554,13 +1617,23 @@ function InputTab({data,setData,mode,onSave,saveState,hasUnsaved,onImport}){
         {/* ── 목표 셀: 입력 + 전년비 ── */}
         {hasTgt&&(
           <div style={{
-            background:C.blue+"0d",border:`1px solid ${C.blue}33`,borderRadius:7,
+            background:isTargetUnlocked?C.blue+"0d":"rgba(255,255,255,.03)",
+            border:`1px solid ${isTargetUnlocked?C.blue+"33":C.b1}`,borderRadius:7,
             padding:"5px 8px",display:"flex",flexDirection:"column",gap:2,
+            position:"relative",
           }}>
+            {!isTargetUnlocked&&(
+              <div style={{position:"absolute",inset:0,borderRadius:7,zIndex:2,
+                display:"flex",alignItems:"center",justifyContent:"center",
+                background:"rgba(7,16,31,.6)",cursor:"pointer"}}
+                onClick={onRequestTargetUnlock}>
+                <span style={{color:C.muted,fontSize:10}}>🔒 목표</span>
+              </div>
+            )}
             <div style={{display:"flex",alignItems:"center",gap:6}}>
-              <span style={{color:C.blue,fontSize:9,fontWeight:700,width:20,flexShrink:0}}>목표</span>
+              <span style={{color:isTargetUnlocked?C.blue:C.muted,fontSize:9,fontWeight:700,width:20,flexShrink:0}}>목표</span>
               <NumInput value={row.auto?tRow[row.key]:tD[sk(mi)]?.[row.key]}
-                readOnly={row.auto} color={C.blue}
+                readOnly={row.auto||!isTargetUnlocked} color={C.blue}
                 onChange={v=>setVal("target",mi,row.key,v)}/>
               <span style={{color:C.muted,fontSize:9,flexShrink:0}}>억</span>
             </div>
@@ -1886,9 +1959,26 @@ function InputTab({data,setData,mode,onSave,saveState,hasUnsaved,onImport}){
           {/* ── 목표 블록 (25/26년만) ── */}
           {hasTgt&&(
             <div style={{
-              background:C.card,border:`1px solid ${C.blue}44`,borderRadius:14,
+              background:C.card,border:`1px solid ${isTargetUnlocked?C.blue:C.b1}44`,borderRadius:14,
               overflow:"hidden",boxShadow:"0 4px 20px rgba(0,0,0,.25)",
+              position:"relative",
             }}>
+              {/* 잠금 오버레이 */}
+              {!isTargetUnlocked&&(
+                <div style={{position:"absolute",inset:0,zIndex:10,
+                  background:"rgba(7,16,31,.82)",backdropFilter:"blur(2px)",
+                  display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:12}}>
+                  <div style={{fontSize:36}}>🔒</div>
+                  <div style={{color:C.text,fontWeight:800,fontSize:14}}>목표 입력 잠금</div>
+                  <div style={{color:C.muted,fontSize:11,marginBottom:4}}>관리자 비밀번호로 잠금을 해제하세요</div>
+                  <button onClick={onRequestTargetUnlock} style={{
+                    padding:"9px 24px",borderRadius:8,border:`1px solid ${C.blue}`,
+                    background:C.blue+"22",color:C.blue,cursor:"pointer",
+                    fontWeight:700,fontSize:12,fontFamily:"inherit"}}>
+                    🔓 잠금 해제
+                  </button>
+                </div>
+              )}
               <div style={{
                 padding:"10px 16px",
                 background:`linear-gradient(90deg,${C.blue}22 0%,transparent 70%)`,
@@ -1899,7 +1989,19 @@ function InputTab({data,setData,mode,onSave,saveState,hasUnsaved,onImport}){
                   boxShadow:`0 0 8px ${C.blue}`}}/>
                 <span style={{color:C.blue,fontWeight:900,fontSize:14}}>🎯 목표 입력</span>
                 <span style={{color:C.muted,fontSize:11}}>{yr}년 · 억원 단위</span>
-                {prevYr&&<span style={{color:C.muted,fontSize:10,marginLeft:"auto"}}>
+                {isTargetUnlocked?(
+                  <button onClick={onTargetLock} style={{
+                    marginLeft:"auto",padding:"4px 10px",borderRadius:6,
+                    border:`1px solid ${C.muted}`,background:"transparent",
+                    color:C.muted,cursor:"pointer",fontSize:10,fontWeight:700,fontFamily:"inherit"}}>
+                    🔒 잠금
+                  </button>
+                ):(
+                  prevYr&&<span style={{color:C.muted,fontSize:10,marginLeft:"auto"}}>
+                    셀 하단: 전{prevYr}년실적 대비 성장률 자동표시
+                  </span>
+                )}
+                {isTargetUnlocked&&prevYr&&<span style={{color:C.muted,fontSize:10}}>
                   셀 하단: 전{prevYr}년실적 대비 성장률 자동표시
                 </span>}
               </div>
@@ -3004,6 +3106,10 @@ function App(){
   const [dbReady,   setDbReady]   = useState(false);   // ← 추가: Firebase 응답 완료 여부
   const [showReport,setShowReport]= useState(false);
   const [showImport,setShowImport]= useState(false);
+  const [isTargetUnlocked,setIsTargetUnlocked] = useState(
+    ()=>sessionStorage.getItem(TGT_UNLOCK_KEY)==="1"
+  );
+  const [showTgtPwModal,setShowTgtPwModal] = useState(false);
   const isMobile = useIsMobile();
 
   // 레포트용 전역 데이터 노출
@@ -3203,11 +3309,23 @@ function App(){
               {tab==="analysis" &&<Analysis  key={mode} data={data} mode={mode}/>}
               {tab==="input"    &&<InputTab  key={mode} data={data} setData={handleSetData} mode={mode}
               onSave={handleSave} saveState={saveState} hasUnsaved={hasUnsaved}
-              onImport={()=>setShowImport(true)}/>}
+              onImport={()=>setShowImport(true)}
+              isTargetUnlocked={isTargetUnlocked}
+              onRequestTargetUnlock={()=>setShowTgtPwModal(true)}
+              onTargetLock={()=>{sessionStorage.removeItem(TGT_UNLOCK_KEY);setIsTargetUnlocked(false);}}
+              />}
             </>
           )}
         </ErrorBoundary>
       </div>
+
+      {/* 목표 잠금해제 비번 모달 */}
+      {showTgtPwModal&&(
+        <TargetUnlockModal
+          onSuccess={()=>{sessionStorage.setItem(TGT_UNLOCK_KEY,"1");setIsTargetUnlocked(true);setShowTgtPwModal(false);}}
+          onClose={()=>setShowTgtPwModal(false)}
+        />
+      )}
 
       {/* 푸터 */}
       <div style={{borderTop:`1px solid ${C.b1}`,padding:"8px 16px",background:C.surf,marginTop:20}}>
