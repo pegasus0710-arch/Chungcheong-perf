@@ -1006,11 +1006,15 @@ function PlanApp(){
         </div>
 
         {/* ── [2+3] 월별 + 누계 가로 나란히 (반응형) */}
-        <style>{`.perf-row{display:flex;gap:12px}.perf-col{flex:1 1 0;min-width:0;background:#0a1628;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:14px}@media(max-width:900px){.perf-row{flex-direction:column}}`}</style>
+        <style>{`.perf-row{display:flex;gap:12px}
+        .perf-col{flex:1 1 0;min-width:0;border-radius:12px;padding:14px}
+        .perf-col-monthly{background:#0d1e35;border:1px solid rgba(56,182,245,.12)}
+        .perf-col-cum{background:#0a1a2e;border:1px solid rgba(124,131,245,.12)}
+        @media(max-width:900px){.perf-row{flex-direction:column}}`}</style>
         <div className="perf-row">
 
         {/* ── [2] 월별 실적 */}
-        <div className="perf-col">
+        <div className="perf-col perf-col-monthly">
           {/* 헤더 */}
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,flexWrap:"wrap",gap:6}}>
             <div style={{fontWeight:800,fontSize:12,color:C.text}}>
@@ -1105,7 +1109,7 @@ function PlanApp(){
         </div>{/* 월별 col 끝 */}
 
         {/* ── [3] 누계 실적 */}
-        <div className="perf-col">
+        <div className="perf-col perf-col-cum">
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,flexWrap:"wrap",gap:6}}>
             <div style={{fontWeight:800,fontSize:12,color:C.text}}>
               <span style={{color}}>◈ {part}</span>
