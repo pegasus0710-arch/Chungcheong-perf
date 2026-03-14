@@ -4,6 +4,8 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>달성 계획 | 충청영업팀</title>
+  <link rel="icon" href="favicon.ico"/>
+  <link rel="apple-touch-icon" href="favicon.ico"/>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
@@ -827,20 +829,51 @@ function PlanApp(){
   return(
     <div style={{background:C.bg,minHeight:"100vh"}}>
 
-      {/* ── 헤더 */}
+      {/* ── 헤더 (메인화면 동일 구조) */}
       <div style={{position:"sticky",top:0,zIndex:100,background:C.surf,borderBottom:`1px solid ${C.b1}`,padding:"0 16px"}}>
-        <div style={{maxWidth:1360,margin:"0 auto",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",padding:"8px 0"}}>
+        <div style={{maxWidth:1360,margin:"0 auto",display:"flex",alignItems:"center",gap:2,padding:"8px 0"}}>
+          {/* 로고 — 클릭 시 메인 이동 */}
           <a href="index.html" style={{display:"flex",alignItems:"center",gap:8,textDecoration:"none",color:C.text,marginRight:8,flexShrink:0}}>
             <div style={{width:28,height:28,borderRadius:8,background:C.accent,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900,fontSize:14,color:"#fff"}}>C</div>
             <div>
-              <div style={{fontWeight:800,fontSize:12,color:C.text}}>충청영업팀</div>
-              <div style={{fontSize:9,color:C.muted}}>← 메인으로</div>
+              <div style={{fontWeight:900,fontSize:12,color:C.text}}>충청영업팀</div>
+              <div style={{color:mode==="매출"?C.매출:C.판매,fontSize:9,fontWeight:700}}>충청영업팀 · {mode}</div>
             </div>
           </a>
-          <div style={{width:1,height:24,background:C.b1}}/>
-          <span style={{color:C.accent,fontWeight:800,fontSize:13,flexShrink:0}}>📋 달성 계획</span>
-
-          <div style={{display:"flex",gap:4,marginLeft:"auto"}}>
+          {/* 탭 메뉴 (메인 이동 + 달성계획 현재) */}
+          <nav style={{display:"flex",gap:2}}>
+            {[
+              {href:"index.html#dashboard",l:"대시보드",i:"◈"},
+              {href:"index.html#analysis", l:"실적분석",i:"◉"},
+              {href:"index.html#input",    l:"실적입력",i:"◎"},
+            ].map(t=>(
+              <a key={t.href} href={t.href} style={{
+                padding:"6px 14px",borderRadius:7,border:"none",cursor:"pointer",
+                background:"transparent",color:C.muted,
+                fontWeight:500,fontSize:12,fontFamily:"inherit",
+                textDecoration:"none",display:"flex",alignItems:"center",gap:4,
+                borderBottom:"2px solid transparent",whiteSpace:"nowrap",
+                transition:"color .15s",
+              }}
+              onMouseEnter={e=>{e.currentTarget.style.color=mode==="매출"?C.매출:C.판매;}}
+              onMouseLeave={e=>{e.currentTarget.style.color=C.muted;}}>
+                {t.i} {t.l}
+              </a>
+            ))}
+            {/* 달성계획 — 현재 페이지 강조 */}
+            <a href="plan.html" style={{
+              padding:"6px 14px",borderRadius:7,border:"none",cursor:"pointer",
+              background:C.accent+"22",color:C.accent,
+              fontWeight:800,fontSize:12,fontFamily:"inherit",
+              textDecoration:"none",display:"flex",alignItems:"center",gap:4,
+              borderBottom:`2px solid ${C.accent}`,whiteSpace:"nowrap",flexShrink:0,
+            }}>
+              📋 달성계획
+            </a>
+          </nav>
+          <div style={{width:1,height:20,background:C.b1,margin:"0 6px",flexShrink:0}}/>
+          {/* 판매/매출 */}
+          <div style={{display:"flex",gap:2}}>
             {MODES.map(m=>(
               <button key={m} onClick={()=>setMode(m)} style={{
                 padding:"5px 12px",borderRadius:6,cursor:"pointer",fontWeight:700,fontSize:11,
