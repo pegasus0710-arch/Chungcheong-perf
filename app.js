@@ -3051,15 +3051,13 @@ function ReportModal({onClose, mode, tab}){
         </div>
         <div style={{padding:"16px"}}>
           <BtnRow icon="📄" label="PDF 출력" badge="추천" c={C.blue}
-            desc={"화면 그대로 PDF로 저장
-보고·공유용 레포트"}
+            desc={"화면 그대로 PDF로 저장\n보고·공유용 레포트"}
             onClick={downloadPdf}/>
           <BtnRow icon="🖼" label="이미지 저장 (PNG)" badge="시각 동일" c="#7c83f5"
             desc={"현재 화면 캡처 후 PNG로 저장"}
             onClick={downloadExcelImg}/>
           <BtnRow icon="📊" label="엑셀 (데이터)" badge="편집 가능" c={C.orange}
-            desc={"실적·목표 수치 테이블
-데이터 편집 가능"}
+            desc={"실적·목표 수치 테이블\n데이터 편집 가능"}
             onClick={downloadExcelData}/>
           {msg&&<div style={{marginTop:8,padding:"10px 14px",borderRadius:8,
             background:msg.startsWith("❌")?"rgba(240,112,112,.12)":"rgba(45,212,136,.12)",
