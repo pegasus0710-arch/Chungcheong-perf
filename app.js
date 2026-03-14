@@ -1636,17 +1636,15 @@ function InputTab({data,setData,mode,onSave,saveState,hasUnsaved,onImport,isTarg
             position:"relative",
           }}>
             {!isTargetUnlocked&&(
-              <div style={{position:"absolute",inset:0,borderRadius:7,zIndex:2,
-                display:"flex",alignItems:"center",justifyContent:"center",
-                background:"rgba(7,16,31,.6)",cursor:"pointer"}}
+              <div style={{position:"absolute",top:3,right:5,zIndex:2,cursor:"pointer"}}
                 onClick={onRequestTargetUnlock}>
-                <span style={{color:C.muted,fontSize:10}}>🔒 목표</span>
+                <span style={{color:C.muted,fontSize:9}}>🔒</span>
               </div>
             )}
             <div style={{display:"flex",alignItems:"center",gap:6}}>
               <span style={{color:isTargetUnlocked?C.blue:C.muted,fontSize:9,fontWeight:700,width:20,flexShrink:0}}>목표</span>
               <NumInput value={row.auto?tRow[row.key]:tD[sk(mi)]?.[row.key]}
-                readOnly={row.auto||!isTargetUnlocked} color={C.blue}
+                readOnly={row.auto||!isTargetUnlocked} color={isTargetUnlocked?C.blue:C.muted}
                 onChange={v=>setVal("target",mi,row.key,v)}/>
               <span style={{color:C.muted,fontSize:9,flexShrink:0}}>억</span>
             </div>
@@ -1734,16 +1732,16 @@ function InputTab({data,setData,mode,onSave,saveState,hasUnsaved,onImport,isTarg
                 <div>
                   <input type="number" step="any" min="0" placeholder="0"
                     value={d[sk(mi2)]?.[row.key]??""}
-                    readOnly={type==="perf"&&perfLocked}
-                    onChange={type==="perf"&&perfLocked?undefined:e=>setVal(type,mi2,row.key,e.target.value)}
+                    readOnly={perfLocked}
+                    onChange={perfLocked?undefined:e=>setVal(type,mi2,row.key,e.target.value)}
                     style={{
                       width:"100%",background:C.bg,
-                      border:`1px solid ${type==="perf"&&perfLocked?C.b1:C.b1}`,borderRadius:5,
-                      padding:"6px 8px",color:type==="perf"&&perfLocked?C.muted2:clr,fontSize:12,
+                      border:`1px solid ${C.b1}`,borderRadius:5,
+                      padding:"6px 8px",color:perfLocked?C.muted2:clr,fontSize:12,
                       outline:"none",textAlign:"right",fontFamily:"inherit",
-                      cursor:type==="perf"&&perfLocked?"default":"text",
+                      cursor:perfLocked?"default":"text",
                     }}
-                    onFocus={e=>{if(!(type==="perf"&&perfLocked)){e.target.style.borderColor=clr;e.target.style.boxShadow=`0 0 0 2px ${clr}22`;}}}
+                    onFocus={e=>{if(!perfLocked){e.target.style.borderColor=clr;e.target.style.boxShadow=`0 0 0 2px ${clr}22`;}}}
                     onBlur={e=>{e.target.style.borderColor=C.b1;e.target.style.boxShadow="none";}}
                   />
                   {/* 달성률 (실적) */}
@@ -1993,24 +1991,7 @@ function InputTab({data,setData,mode,onSave,saveState,hasUnsaved,onImport,isTarg
             <div style={{
               background:C.card,border:`1px solid ${isTargetUnlocked?C.blue:C.b1}44`,borderRadius:14,
               overflow:"hidden",boxShadow:"0 4px 20px rgba(0,0,0,.25)",
-              position:"relative",
             }}>
-              {/* 잠금 오버레이 */}
-              {!isTargetUnlocked&&(
-                <div style={{position:"absolute",inset:0,zIndex:10,
-                  background:"rgba(7,16,31,.82)",backdropFilter:"blur(2px)",
-                  display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:12}}>
-                  <div style={{fontSize:36}}>🔒</div>
-                  <div style={{color:C.text,fontWeight:800,fontSize:14}}>목표 입력 잠금</div>
-                  <div style={{color:C.muted,fontSize:11,marginBottom:4}}>관리자 비밀번호로 잠금을 해제하세요</div>
-                  <button onClick={onRequestTargetUnlock} style={{
-                    padding:"9px 24px",borderRadius:8,border:`1px solid ${C.blue}`,
-                    background:C.blue+"22",color:C.blue,cursor:"pointer",
-                    fontWeight:700,fontSize:12,fontFamily:"inherit"}}>
-                    🔓 입력 잠금 해제
-                  </button>
-                </div>
-              )}
               <div style={{
                 padding:"10px 16px",
                 background:`linear-gradient(90deg,${C.blue}22 0%,transparent 70%)`,
@@ -2019,23 +2000,14 @@ function InputTab({data,setData,mode,onSave,saveState,hasUnsaved,onImport,isTarg
               }}>
                 <div style={{width:4,height:20,borderRadius:2,background:C.blue,
                   boxShadow:`0 0 8px ${C.blue}`}}/>
-                <span style={{color:C.blue,fontWeight:900,fontSize:14}}>🎯 목표 입력</span>
+                <span style={{color:isTargetUnlocked?C.blue:C.muted,fontWeight:900,fontSize:14}}>🎯 목표 입력</span>
                 <span style={{color:C.muted,fontSize:11}}>{yr}년 · 억원 단위</span>
-                {isTargetUnlocked?(
-                  <button onClick={onTargetLock} style={{
-                    marginLeft:"auto",padding:"4px 10px",borderRadius:6,
-                    border:`1px solid ${C.muted}`,background:"transparent",
-                    color:C.muted,cursor:"pointer",fontSize:10,fontWeight:700,fontFamily:"inherit"}}>
-                    🔒 잠금
-                  </button>
-                ):(
-                  prevYr&&<span style={{color:C.muted,fontSize:10,marginLeft:"auto"}}>
+                <div style={{marginLeft:"auto",display:"flex",gap:6,alignItems:"center"}}>
+                  {prevYr&&isTargetUnlocked&&<span style={{color:C.muted,fontSize:10}}>
                     셀 하단: 전{prevYr}년실적 대비 성장률 자동표시
-                  </span>
-                )}
-                {isTargetUnlocked&&prevYr&&<span style={{color:C.muted,fontSize:10}}>
-                  셀 하단: 전{prevYr}년실적 대비 성장률 자동표시
-                </span>}
+                  </span>}
+                  {!isTargetUnlocked&&<span style={{color:C.muted,fontSize:10}}>🔒 잠금 상태 — 실적 블록에서 해제</span>}
+                </div>
               </div>
 
               <div style={{overflowX:"auto"}}>
@@ -2056,7 +2028,7 @@ function InputTab({data,setData,mode,onSave,saveState,hasUnsaved,onImport,isTarg
                     {INPUT_ROWS.map((row,ri)=>(
                       <React.Fragment key={row.key}>
                         {row.gs&&ri>0&&<GroupDivider color={C.blue}/>}
-                        <BulkDataRow row={row} type="target" colorOverride={C.blue}/>
+                        <BulkDataRow row={row} type="target" colorOverride={C.blue} perfLocked={!isTargetUnlocked}/>
                       </React.Fragment>
                     ))}
                   </tbody>
@@ -3372,9 +3344,6 @@ function App(){
               onImport={()=>setShowImport(true)}
               isTargetUnlocked={isTargetUnlocked}
               onRequestTargetUnlock={()=>setShowTgtPwModal(true)}
-              onTargetLock={()=>{sessionStorage.removeItem(TGT_UNLOCK_KEY);setIsTargetUnlocked(false);}}
-              isTargetUnlocked={isTargetUnlocked}
-              onRequestTargetUnlock={()=>setShowPerfPwModal(true)}
               onTargetLock={()=>{sessionStorage.removeItem(TGT_UNLOCK_KEY);setIsTargetUnlocked(false);}}
               />}
             </>
