@@ -674,14 +674,15 @@ function PlanApp(){
   }); // 화면 배율 %
   // 양방향 zoom (center 기준)
   useEffect(()=>{
-    const el=document.getElementById('plan-content');
-    if(!el)return;
+    const wrapper=document.getElementById('plan-zoom-wrapper');
+    if(!wrapper)return;
     const safeZoom=Math.max(50,Math.min(200,zoom||100));
     const ratio=safeZoom/100;
-    el.style.transformOrigin='top center';
-    el.style.transform=`scale(${ratio})`;
-    el.style.width=`${100/ratio}%`;
-    el.style.marginLeft=`${-(100/ratio-100)/2}%`;
+    wrapper.style.transformOrigin='top center';
+    wrapper.style.transform=`scale(${ratio})`;
+    wrapper.style.width=`${100/ratio}%`;
+    wrapper.style.position='relative';
+    wrapper.style.left=`${-(100/ratio-100)/2}%`;
     localStorage.setItem('cst_zoom_v2', String(safeZoom));
   },[zoom]);
   // (yr==="26"?"25":yr==="25"?"24":"23"): yr 기반 자동 계산 (별도 state 불필요)
@@ -1045,6 +1046,7 @@ function PlanApp(){
         </div>
       </div>
 
+      <div id="plan-zoom-wrapper" style={{position:"relative",left:0}}>
       <div id="plan-content" style={{maxWidth:1360,margin:"0 auto",padding:"16px",display:"flex",flexDirection:"column",gap:14}}>
 
         {/* ── [1] KPI 카드 — 한 줄 가로 (반응형) */}
@@ -1497,7 +1499,8 @@ function PlanApp(){
         <div style={{color:C.muted,fontSize:10,textAlign:"center",paddingBottom:16}}>
           충청영업팀 실적관리 시스템 · 달성 계획 / 비밀번호 문의: 관리자
         </div>
-      </div>
+      </div>{/* plan-content 끝 */}
+      </div>{/* plan-zoom-wrapper 끝 */}
 
       {/* 백업 모달 */}
       {showBackup&&(
