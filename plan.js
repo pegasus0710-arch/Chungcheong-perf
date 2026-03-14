@@ -677,13 +677,19 @@ function PlanApp(){
     if(!wrapper)return;
     const safeZoom=Math.max(50,Math.min(200,zoom||100));
     const ratio=safeZoom/100;
-    const vw=window.innerWidth;
-    wrapper.style.transformOrigin='top left';
-    wrapper.style.transform=`scale(${ratio})`;
-    wrapper.style.width=`${vw}px`;
-    wrapper.style.position='relative';
-    wrapper.style.left=`${(vw - vw*ratio)/2}px`;
-    wrapper.parentElement.style.minHeight=`${wrapper.scrollHeight*ratio}px`;
+    if(ratio===1){
+      wrapper.style.transform='';
+      wrapper.style.width='';
+      wrapper.style.position='';
+      wrapper.style.left='';
+    } else {
+      const vw=window.innerWidth;
+      wrapper.style.transformOrigin='top left';
+      wrapper.style.transform=`scale(${ratio})`;
+      wrapper.style.width=`${vw}px`;
+      wrapper.style.position='relative';
+      wrapper.style.left=`${(vw - vw*ratio)/2}px`;
+    }
     localStorage.setItem('cst_zoom_v2', String(safeZoom));
   },[zoom]);
   // (yr==="26"?"25":yr==="25"?"24":"23"): yr 기반 자동 계산 (별도 state 불필요)
