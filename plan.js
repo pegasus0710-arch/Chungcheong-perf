@@ -666,6 +666,7 @@ function PlanApp(){
   const [dbReady,setDbReady]=useState(false);
   const [selMonth,setSelMonth]=useState("annual"); // 'annual' | 0~11
   const [isEditing,setIsEditing]=useState(false);   // 수정 모드 잠금
+  const [editorKey,setEditorKey]=useState(0);  // 편집기 강제 remount용
   const [zoom,setZoom]=useState(()=>{
     const saved=parseInt(localStorage.getItem('cst_zoom_v2'));
     return (saved>=80&&saved<=200)?saved:100;
@@ -1400,24 +1401,36 @@ function PlanApp(){
             })}
           </div>
 
-          {/* 참고 카드 */}
-          <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
-            {[
-              {label:selMonth==="annual"?"연간 목표":`${MONTHS[selMonth]} 목표`,val:fmtN(selTgt),c:C.orange},
-              {label:selMonth==="annual"?"전년 연간 실적":`${MONTHS[selMonth]} 전년 실적`,val:fmtN(selPrev),c:C.muted2},
-              {label:"성장 목표",val:selGrowthTarget?(gNum(selGrowthTarget)>=0?"▲":"▼")+Math.abs(gNum(selGrowthTarget)).toFixed(1)+"%":"─",
-               c:selGrowthTarget?grwC(selGrowthTarget):C.muted},
-              ...(selMi!==null&&selPerf>0?[{label:`${MONTHS[selMi]} 실적`,
-                val:fmtN(selPerf)+(selAr?` (달성${Math.round(gNum(selAr))}%)`:"")
-                  +(selActualGr&&!selAr?` (${gNum(selActualGr)>=0?"▲":"▼"}${Math.abs(gNum(selActualGr)).toFixed(1)}%)`:""),
-                c:color}]:[]),
-            ].map(({label,val,c})=>(
-              <div key={label} style={{background:C.card,borderRadius:8,padding:"10px 16px",
-                border:`1px solid ${C.b1}`,flex:1,minWidth:120}}>
-                <div style={{color:C.muted,fontSize:9,fontWeight:700,marginBottom:3}}>{label}</div>
-                <div style={{color:c,fontSize:16,fontWeight:900}}>{val}</div>
-              </div>
-            ))}
+                    {/* 참고 카드 — title+body 구조 */}
+          <div style={{display:"flex",gap:6,marginBottom:16,flexWrap:"wrap"}}>
+            {(()=>{
+              const cards=[
+                {label:selMonth==="annual"?"연간 목표":`${MONTHS[selMonth]} 목표`,val:fmtN(selTgt),c:C.orange,bg:C.orange+"12"},
+                {label:selMonth==="annual"?"전년 연간 실적":`${MONTHS[selMonth]} 전년 실적`,val:fmtN(selPrev),c:C.muted2,bg:"rgba(255,255,255,.04)"},
+                {label:"성장 목표",
+                 val:selGrowthTarget?(gNum(selGrowthTarget)>=0?"▲":"▼")+Math.abs(gNum(selGrowthTarget)).toFixed(1)+"%":"─",
+                 c:selGrowthTarget?grwC(selGrowthTarget):C.muted,
+                 bg:selGrowthTarget?(gNum(selGrowthTarget)>=0?"rgba(34,197,94,.08)":"rgba(239,68,68,.08)"):"rgba(255,255,255,.04)"},
+                ...(selMi!==null&&selPerf>0?[{
+                  label:`${MONTHS[selMi]} 실적`,
+                  val:fmtN(selPerf),
+                  sub:selAr?`달성 ${Math.round(gNum(selAr))}%`:selActualGr?(gNum(selActualGr)>=0?"▲":"▼")+Math.abs(gNum(selActualGr)).toFixed(1)+"%":null,
+                  c:color,bg:color+"10"}]:[]),
+              ];
+              return cards.map(({label,val,sub,c,bg})=>(
+                <div key={label} style={{
+                  background:"#0a1628",borderRadius:8,overflow:"hidden",
+                  border:`1px solid ${c}30`,flex:1,minWidth:110}}>
+                  <div style={{background:bg||"rgba(255,255,255,.04)",padding:"5px 12px",
+                    color:c,fontSize:9,fontWeight:800,letterSpacing:".4px",
+                    borderBottom:"1px solid rgba(255,255,255,.06)"}}>{label}</div>
+                  <div style={{padding:"10px 12px"}}>
+                    <div style={{color:c,fontSize:18,fontWeight:900,letterSpacing:"-.5px"}}>{val}</div>
+                    {sub&&<div style={{color:c,fontSize:11,fontWeight:700,marginTop:2,opacity:.8}}>{sub}</div>}
+                  </div>
+                </div>
+              ));
+            })()}
           </div>
 
           {/* ── 달성 계획 에디터 */}
@@ -1431,6 +1444,7 @@ function PlanApp(){
               </span>
             </div>
             <RichEditor
+              key={`plan-${editorKey}-${yr}-${mode}-${part}-${selMonth}`}
               value={currentText}
               onChange={e=>setText(yr,mode,part,selMonth==="annual"?"annual":String(selMonth),e.target.value)}
               placeholder={"예)\n• 핵심 거래처 집중 공략: ○○가구 등 상위 10개사 목표 관리\n• 신규 개척: 신혼부부 대상 패키지 제안 확대\n• 캠페인 연계: 봄 이사철 프로모션 적극 활용\n• 리스크 관리: 전년 대비 취약 월 보완 방안 수립"}
@@ -1452,6 +1466,7 @@ function PlanApp(){
               
             </div>
             <RichEditor
+              key={`prev-${editorKey}-${yr}-${mode}-${part}-${selMonth}`}
               value={getText("prev_"+(yr==="26"?"25":yr==="25"?"24":"23"),mode,part,selMonth==="annual"?"annual":String(selMonth))}
               onChange={e=>setText("prev_"+(yr==="26"?"25":yr==="25"?"24":"23"),mode,part,selMonth==="annual"?"annual":String(selMonth),e.target.value)}
               placeholder={"예)\n• 1분기: 혼수·이사 수요 호조로 초과달성\n• 하반기: 경기침체로 고가 제품 부진\n• 연간 달성률 103%, 전년비 +5%"}
@@ -1472,7 +1487,7 @@ function PlanApp(){
             <div style={{display:"flex",gap:6,alignItems:"center"}}>
               {isEditing?(
                 <>
-                  <button onClick={()=>{setTextDraft({});setIsEditing(false);}} style={{
+                  <button onClick={()=>{setTextDraft({});setIsEditing(false);setEditorKey(k=>k+1);}} style={{
                     padding:"8px 18px",borderRadius:7,cursor:"pointer",fontWeight:700,fontSize:12,
                     fontFamily:"inherit",border:`1px solid ${C.muted}`,background:"transparent",color:C.muted}}>
                     취소
@@ -1486,7 +1501,7 @@ function PlanApp(){
                   </button>
                 </>
               ):(
-                <button onClick={()=>setIsEditing(true)} style={{
+                <button onClick={()=>{setIsEditing(true);setEditorKey(k=>k+1);}} style={{
                   padding:"8px 22px",borderRadius:7,cursor:"pointer",fontWeight:700,fontSize:12,
                   fontFamily:"inherit",border:`1px solid ${C.accent}`,background:C.accent+"22",color:C.accent}}>
                   ✏️ 수정
