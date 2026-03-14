@@ -3127,12 +3127,16 @@ function App(){
     if(!el)return;
     const safeZoom=Math.max(50,Math.min(200,globalZoom||100));
     const ratio=safeZoom/100;
-    el.style.transformOrigin='top center';
+    const vw=window.innerWidth; // 실제 viewport 기준 (zoom 무관)
+    el.style.transformOrigin='top left';
     el.style.transform=`scale(${ratio})`;
-    el.style.width=`${100/ratio}%`;
+    // width를 viewport 기준으로 고정 → isMobile 등 내부 레이아웃 변화 없음
+    el.style.width=`${vw}px`;
     el.style.position='relative';
-    el.style.left=`${-(100/ratio-100)/2}%`;
+    el.style.left=`${(vw - vw*ratio)/2}px`;
     el.style.margin='0';
+    // 줄어들 때 빈 공간 없도록 부모 높이 조정
+    el.parentElement.style.minHeight=`${el.scrollHeight*ratio}px`;
     localStorage.setItem(FONT_SIZE_KEY, String(safeZoom));
   },[globalZoom]);
   const isMobile = useIsMobile();
