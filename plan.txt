@@ -174,7 +174,8 @@ function MiniChart({series,labels,h=240,pctMode=false,grMode=false}){
   // y축 가변: 실적 차트는 데이터 최솟값 기준 (격차 강조)
   const rawMin=Math.min(...allV);
   const padding=(maxV-rawMin)*0.12;
-  const minV=pctMode?0:grMode?Math.min(rawMin,0):Math.max(0,rawMin-padding);
+  // pctMode도 데이터 기준 가변 (단, 100% 기준선 표시 유지)
+  const minV=grMode?Math.min(rawMin,0):Math.max(0,rawMin-padding);
   const range=maxV-minV||1;
   const cy=v=>PT+iH*(1-(gNum(v)-minV)/range);
   const cx=i=>PL+iW*i/11;
@@ -880,101 +881,86 @@ function PlanApp(){
 
       <div id="plan-content" style={{maxWidth:1360,margin:"0 auto",padding:"16px",display:"flex",flexDirection:"column",gap:14}}>
 
-        {/* ── [1] KPI 카드 — 균등 가로 배치 (모바일 반응형) */}
+        {/* ── [1] KPI 카드 — 한 줄 가로 (반응형) */}
         <style>{`
-          @media(max-width:600px){
-            .kpi-grid-main{grid-template-columns:1fr 1fr !important}
-            .kpi-grid-sub{grid-template-columns:1fr 1fr !important}
-          }
-          @media(max-width:380px){
-            .kpi-grid-main{grid-template-columns:1fr !important}
-          }
+          .kpi-row{display:flex;gap:6px;flex-wrap:nowrap;overflow-x:auto}
+          .kpi-cell{flex:1 1 0;min-width:110px;background:#0f2138;border-radius:10px;padding:10px 12px;box-sizing:border-box}
+          .kpi-cell-lg{flex:1.6 1 0;min-width:140px}
+          @media(max-width:640px){.kpi-row{flex-wrap:wrap}.kpi-cell{min-width:calc(50% - 3px)}.kpi-cell-lg{min-width:100%}}
         `}</style>
-        <div style={{display:"flex",flexDirection:"column",gap:8}}>
-          {/* 1단: 핵심 2개 대형 */}
-          <div className="kpi-grid-main" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-            {/* 누계 실적 — 대형 */}
-            <div style={{background:C.card,border:`2px solid ${color}40`,borderRadius:12,padding:"14px 18px",
-              background:`linear-gradient(135deg,${C.card} 60%,${color}08 100%)`}}>
-              <div style={{color:C.muted,fontSize:10,fontWeight:700,marginBottom:6}}>
-                누계 실적{emi>=0?` (${MONTHS[emi]})`:""}
-              </div>
-              <div style={{color,fontSize:26,fontWeight:900,letterSpacing:"-0.5px",marginBottom:4}}>{fmtN(ytdP)}</div>
-              <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
-                {ytdAr&&<span style={{color:pctC(ytdAr),fontWeight:800,fontSize:12}}>
-                  {Math.round(gNum(ytdAr))}% 달성
-                </span>}
-                {avgMonthly>0&&<span style={{color:C.muted2,fontSize:10}}>월평균 {avgMonthly.toLocaleString()}억</span>}
-              </div>
+        <div className="kpi-row">
+          {/* 누계 실적 */}
+          <div className="kpi-cell kpi-cell-lg" style={{border:`2px solid ${color}40`}}>
+            <div style={{color:C.muted,fontSize:9,fontWeight:700,marginBottom:4}}>누계 실적{emi>=0?` (${MONTHS[emi]})`:""}</div>
+            <div style={{color,fontSize:22,fontWeight:900,letterSpacing:"-0.5px",marginBottom:3}}>{fmtN(ytdP)}</div>
+            <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+              {ytdAr&&<span style={{color:pctC(ytdAr),fontWeight:800,fontSize:11}}>{Math.round(gNum(ytdAr))}% 달성</span>}
+              {avgMonthly>0&&<span style={{color:C.muted2,fontSize:10}}>월평 {avgMonthly}억</span>}
             </div>
-            {/* 연간 목표 — 대형 */}
-            <div style={{background:C.card,border:`2px solid ${C.orange}40`,borderRadius:12,padding:"14px 18px",
-              background:`linear-gradient(135deg,${C.card} 60%,${C.orange}08 100%)`}}>
-              <div style={{color:C.muted,fontSize:10,fontWeight:700,marginBottom:6}}>연간 목표</div>
-              <div style={{color:C.orange,fontSize:26,fontWeight:900,letterSpacing:"-0.5px",marginBottom:4}}>{fmtN(annT)}</div>
-              <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
-                <span style={{color:remT>0?C.blue:C.green,fontWeight:700,fontSize:12}}>
-                  잔여 {fmtN(remT)}
+          </div>
+          {/* 연간 목표 */}
+          <div className="kpi-cell kpi-cell-lg" style={{border:`2px solid ${C.orange}40`}}>
+            <div style={{color:C.muted,fontSize:9,fontWeight:700,marginBottom:4}}>연간 목표</div>
+            <div style={{color:C.orange,fontSize:22,fontWeight:900,letterSpacing:"-0.5px",marginBottom:3}}>{fmtN(annT)}</div>
+            <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+              <span style={{color:remT>0?C.blue:C.green,fontWeight:700,fontSize:11}}>잔여 {fmtN(remT)}</span>
+              {needPM>0&&<span style={{color:C.muted2,fontSize:10}}>월평 {needPM}억</span>}
+            </div>
+          </div>
+          {/* 전년비 성장 */}
+          <div className="kpi-cell" style={{border:`1px solid ${ytdGr?grwC(ytdGr):C.muted}22`}}>
+            <div style={{color:C.muted,fontSize:9,fontWeight:700,marginBottom:4}}>전년비 성장</div>
+            <div style={{color:ytdGr?grwC(ytdGr):C.muted,fontSize:18,fontWeight:900}}>
+              {ytdGr?(gNum(ytdGr)>0?"▲":"▼")+Math.abs(gNum(ytdGr)).toFixed(1)+"%":"─"}
+            </div>
+            <div style={{color:C.muted,fontSize:9,marginTop:3}}>전년 {fmtN(ytdPrev)}</div>
+          </div>
+          {/* CE 비중 */}
+          {ceSharePct!==null&&(
+            <div className="kpi-cell" style={{border:"1px solid #7c83f522"}}>
+              <div style={{color:C.muted,fontSize:9,fontWeight:700,marginBottom:4}}>CE 비중</div>
+              <div style={{color:"#7c83f5",fontSize:18,fontWeight:900}}>{ceSharePct.toFixed(1)}%</div>
+              {cePrevSharePct!==null&&<div style={{color:C.muted,fontSize:9,marginTop:3}}>
+                전년 {cePrevSharePct.toFixed(1)}%
+                <span style={{color:(ceSharePct-cePrevSharePct)>=0?C.green:C.red,marginLeft:3,fontWeight:700}}>
+                  {(ceSharePct-cePrevSharePct)>=0?"▲":"▼"}{Math.abs(ceSharePct-cePrevSharePct).toFixed(1)}%p
                 </span>
-                {needPM>0&&<span style={{color:C.muted2,fontSize:10}}>월평균 {needPM.toLocaleString()}억</span>}
-              </div>
+              </div>}
             </div>
+          )}
+          {/* 누계 전년 */}
+          <div className="kpi-cell" style={{border:`1px solid ${C.muted2}22`}}>
+            <div style={{color:C.muted,fontSize:9,fontWeight:700,marginBottom:4}}>누계 전년</div>
+            <div style={{color:C.muted2,fontSize:18,fontWeight:900}}>{fmtN(ytdPrev)}</div>
+            {prevAvgMonthly>0&&<div style={{color:C.muted,fontSize:9,marginTop:3}}>월평 {prevAvgMonthly}억</div>}
           </div>
-          {/* 2단: 보조 지표 소형 */}
-          <div className="kpi-grid-sub" style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:6}}>
-            {/* 전년비 성장 */}
-            <div style={{background:C.card,border:`1px solid ${ytdGr?grwC(ytdGr):C.muted}22`,borderRadius:9,padding:"9px 12px"}}>
-              <div style={{color:C.muted,fontSize:9,fontWeight:700,marginBottom:2}}>전년비 성장</div>
-              <div style={{color:ytdGr?grwC(ytdGr):C.muted,fontSize:15,fontWeight:900}}>
-                {ytdGr?(gNum(ytdGr)>0?"▲":"▼")+Math.abs(gNum(ytdGr)).toFixed(1)+"%":"─"}
-              </div>
-              {ytdPrev>0&&<div style={{color:C.muted,fontSize:9,marginTop:2}}>전년 {fmtN(ytdPrev)}</div>}
+          {/* 대외영업 비중 */}
+          {daeSharePct!==null&&(
+            <div className="kpi-cell" style={{border:`1px solid ${KC["대외영업"]}22`}}>
+              <div style={{color:C.muted,fontSize:9,fontWeight:700,marginBottom:4}}>대외영업 비중</div>
+              <div style={{color:KC["대외영업"],fontSize:18,fontWeight:900}}>{daeSharePct.toFixed(1)}%</div>
             </div>
-            {/* CE 비중 */}
-            {ceSharePct!==null&&(
-              <div style={{background:C.card,border:"1px solid #7c83f522",borderRadius:9,padding:"9px 12px"}}>
-                <div style={{color:C.muted,fontSize:9,fontWeight:700,marginBottom:2}}>CE 비중 (누계)</div>
-                <div style={{color:"#7c83f5",fontSize:15,fontWeight:900}}>{ceSharePct.toFixed(1)}%</div>
-                {cePrevSharePct!==null&&(
-                  <div style={{color:C.muted,fontSize:9,marginTop:2}}>
-                    전년 {cePrevSharePct.toFixed(1)}%
-                    <span style={{color:(ceSharePct-cePrevSharePct)>=0?C.green:C.red,marginLeft:3,fontWeight:700}}>
-                      {(ceSharePct-cePrevSharePct)>=0?"▲":"▼"}{Math.abs(ceSharePct-cePrevSharePct).toFixed(1)}%p
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
-            {/* 누계 전년 */}
-            <div style={{background:C.card,border:`1px solid ${C.muted2}22`,borderRadius:9,padding:"9px 12px"}}>
-              <div style={{color:C.muted,fontSize:9,fontWeight:700,marginBottom:2}}>누계 전년</div>
-              <div style={{color:C.muted2,fontSize:15,fontWeight:900}}>{fmtN(ytdPrev)}</div>
-              {prevAvgMonthly>0&&<div style={{color:C.muted,fontSize:9,marginTop:2}}>월평균 {prevAvgMonthly.toLocaleString()}억</div>}
-            </div>
-            {/* 대외영업 비중 */}
-            {daeSharePct!==null&&(
-              <div style={{background:C.card,border:`1px solid ${KC["대외영업"]}22`,borderRadius:9,padding:"9px 12px"}}>
-                <div style={{color:C.muted,fontSize:9,fontWeight:700,marginBottom:2}}>대외영업 비중</div>
-                <div style={{color:KC["대외영업"],fontSize:15,fontWeight:900}}>{daeSharePct.toFixed(1)}%</div>
-              </div>
-            )}
-          </div>
+          )}
         </div>
 
-        {/* ── [2] 월별 실적 — 차트 위(전체폭) + 핵심표 아래 */}
-        <div style={{background:C.card2,border:`1px solid ${C.b1}`,borderRadius:12,padding:14}}>
+        {/* ── [2+3] 월별 + 누계 가로 나란히 (반응형) */}
+        <style>{`.perf-row{display:flex;gap:12px}.perf-col{flex:1 1 0;min-width:0;background:#0a1628;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:14px}@media(max-width:900px){.perf-row{flex-direction:column}}`}</style>
+        <div className="perf-row">
+
+        {/* ── [2] 월별 실적 */}
+        <div className="perf-col">
           {/* 헤더 */}
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,flexWrap:"wrap",gap:8}}>
-            <div style={{fontWeight:800,fontSize:13,color:C.text}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,flexWrap:"wrap",gap:6}}>
+            <div style={{fontWeight:800,fontSize:12,color:C.text}}>
               <span style={{color}}>◈ {part}</span>
-              <span style={{color:C.muted,fontWeight:400,fontSize:11,marginLeft:8}}>월별 실적 — {yr}년 · {mode}</span>
+              <span style={{color:C.muted,fontWeight:400,fontSize:10,marginLeft:6}}>월별 · {yr}년 {mode}</span>
             </div>
-            <div style={{display:"flex",gap:4}}>
+            <div style={{display:"flex",gap:3}}>
               {["실적","달성","성장"].map(t=><TabBtn key={t} label={t} active={chartTab===t} color={color} onClick={()=>setChartTab(t)}/>)}
             </div>
           </div>
-          {/* 차트 — 전체폭 */}
-          <div style={{marginBottom:14}}>
+          {/* 차트 */}
+          <div style={{marginBottom:10}}>
             {chartTab==="실적"&&<MiniChart labels={MONTHS} h={200} series={[
               {data:mPrev.map((v,i)=>i<=emi?v:null),color:"#a78bfa",op:.7,label:"전년"},
               {data:mTgt.map(v=>v||null),color:C.orange,dash:true,op:.8,label:"목표"},
@@ -1054,31 +1040,31 @@ function PlanApp(){
             </table>
           </div>
           </div>{/* 핵심표 끝 */}
-        </div>
+        </div>{/* 월별 col 끝 */}
 
-        {/* ── [3] 누계 실적 — 차트 위(전체폭) + 표 아래 */}
-        <div style={{background:C.card2,border:`1px solid ${C.b1}`,borderRadius:12,padding:14}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,flexWrap:"wrap",gap:8}}>
-            <div style={{fontWeight:800,fontSize:13,color:C.text}}>
+        {/* ── [3] 누계 실적 */}
+        <div className="perf-col">
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,flexWrap:"wrap",gap:6}}>
+            <div style={{fontWeight:800,fontSize:12,color:C.text}}>
               <span style={{color}}>◈ {part}</span>
-              <span style={{color:C.muted,fontWeight:400,fontSize:11,marginLeft:8}}>누계 실적 — {yr}년 · {mode}</span>
+              <span style={{color:C.muted,fontWeight:400,fontSize:10,marginLeft:6}}>누계 · {yr}년 {mode}</span>
             </div>
-            <div style={{display:"flex",gap:4}}>
+            <div style={{display:"flex",gap:3}}>
               {["실적","달성","성장"].map(t=><TabBtn key={t} label={t} active={cumChartTab===t} color={color} onClick={()=>setCumChartTab(t)}/>)}
             </div>
           </div>
-          {/* 차트 — 전체폭 */}
-          <div style={{marginBottom:14}}>
-            {cumChartTab==="실적"&&<MiniChart labels={MONTHS} h={240} series={[
+          {/* 차트 */}
+          <div style={{marginBottom:10}}>
+            {cumChartTab==="실적"&&<MiniChart labels={MONTHS} h={200} series={[
               {data:cumPrevArr,color:"#a78bfa",op:.7,label:"전년누계"},
               {data:cumTgt,color:C.orange,dash:true,op:.8,label:"누계목표"},
               {data:cumPerf,color,bold:true,fill:true,showLabels:true,label:"누계실적"},
             ]}/>}
-            {cumChartTab==="달성"&&<MiniChart labels={MONTHS} h={240} pctMode={true} series={[
+            {cumChartTab==="달성"&&<MiniChart labels={MONTHS} h={200} pctMode={true} series={[
               {data:MONTHS.map((_,i)=>i<=emi?100:null),color:C.green,dash:true,op:.4,label:"100%"},
               {data:cumAr,color:C.teal,bold:true,fill:true,showLabels:true,label:"누계달성률"},
             ]}/>}
-            {cumChartTab==="성장"&&<MiniChart labels={MONTHS} h={240} grMode={true} series={[
+            {cumChartTab==="성장"&&<MiniChart labels={MONTHS} h={200} grMode={true} series={[
               {data:cumGr,color:C.orange,bold:true,fill:true,showLabels:true,label:"누계성장률"},
             ]}/>}
           </div>
@@ -1148,7 +1134,8 @@ function PlanApp(){
             </table>
           </div>
           </div>
-        </div>
+        </div>{/* 누계 col 끝 */}
+        </div>{/* perf-row 끝 */}
 
         {/* ── [4+5] 달성 계획 + 전년도 주요사항 통합 */}
         <div style={{background:C.card2,border:`2px solid ${C.accent}44`,borderRadius:12,padding:16}}>
