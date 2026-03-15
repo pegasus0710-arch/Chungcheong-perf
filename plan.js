@@ -1440,14 +1440,14 @@ function PlanApp(){
             <table style={{borderCollapse:"collapse",width:"100%",tableLayout:"fixed"}}>
               <thead>
                 <tr style={{borderBottom:`2px solid ${C.b1}`}}>
-                  <td style={{padding:"3px 4px",color:C.muted,fontWeight:700,fontSize:9,width:40}}>항목</td>
+                  <td style={{padding:"3px 4px",color:C.muted,fontWeight:700,fontSize:9,width:36}}>항목</td>
                   {MONTHS.map((m,i)=>(
                     <td key={m} style={{padding:"3px 2px",textAlign:"right",
                       color:i<=emi?C.muted2:C.muted,fontSize:8,fontWeight:600}}>
                       {m.replace("월","")}{i===emi&&<span style={{color,fontSize:6,display:"block",textAlign:"center"}}>▲</span>}
                     </td>
                   ))}
-                  <td style={{padding:"3px 4px",textAlign:"right",color:C.accent,fontSize:9,fontWeight:700,width:38}}>누계</td>
+                  <td style={{padding:"3px 4px",textAlign:"right",color:C.accent,fontSize:9,fontWeight:700,width:54,whiteSpace:"nowrap"}}>누계</td>
                 </tr>
               </thead>
               <tbody>
@@ -1484,13 +1484,13 @@ function PlanApp(){
                         </td>
                       );
                     })}
-                    <td style={{padding:"3px 4px",textAlign:"right"}}>
+                    <td style={{padding:"3px 4px",textAlign:"right",whiteSpace:"nowrap"}}>
                       {isDiff?(
-                        <span style={{color:sum>=0?C.green:C.red,fontWeight:800,fontSize:10}}>
+                        <span style={{color:sum>=0?C.green:C.red,fontWeight:800,fontSize:10,whiteSpace:"nowrap"}}>
                           {sum>=0?"+":""}{Math.round(sum)}억
                         </span>
                       ):sum!=null&&(
-                        <span style={{color:c,fontWeight:800,fontSize:10}}>
+                        <span style={{color:c,fontWeight:800,fontSize:10,whiteSpace:"nowrap"}}>
                           {isPct?Math.round(gNum(sum))+"%":Math.round(gNum(sum)).toLocaleString()+"억"}
                         </span>
                       )}
