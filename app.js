@@ -583,7 +583,7 @@ function Dashboard({data,mode}){
               26년 {MONTHS[emi]} 누계 현황
             </div>
             <div style={{color:C.muted,fontSize:12,marginTop:4}}>
-              입력 기준월 : {MONTHS[emi]} · 판매/매출 전환 가능 · hover 시 소수점 표시
+              입력 기준월 : {MONTHS[emi]} · 판매/매출 전환 가능
             </div>
           </div>
           {/* 핵심 지표 2개 — 상세 확장형 */}
