@@ -8,7 +8,7 @@
    ═══════════════════════════════════════════════ */
 const { useState, useEffect, useCallback, useMemo, useRef } = React;
 const APP_VER = "v3.2";
-// 목표 입력 잠금 비번 (SHA-256) — 기본값: tgt2025!
+// 목표 입력 잠금 비번 (SHA-256) — 기본값: ce2025!
 const TGT_PW_HASH  = "b1c9a90560020cd8f64c5a8a2c30bd2b6ce28dcff2b9e535f9da3c2d14061b68";
 const TGT_UNLOCK_KEY = "cst_tgt_unlock_v1"; // 목표+실적 통합 잠금
 // 전역 폰트 크기 (plan.html → localStorage 공유)
@@ -965,15 +965,15 @@ function Dashboard({data,mode}){
               return tv>0 ? parseFloat((pv/tv*100).toFixed(1)) : null;
             });
             // 누계 달성률 (1월~i월 누적 실적 / 1월~i월 누적 목표)
-            const cumAr = MONTHS.map((_,i)=>{
-              if(i>emi) return null;
+            const cumAr = (()=>{
               let sp=0, st=0;
-              for(let j=0;j<=i;j++){
-                sp+=gNum(fullRow(p26?.[sk(j)])?.[selKey]);
-                st+=gNum(fullRow(t26?.[sk(j)])?.[selKey]);
-              }
-              return st>0 ? parseFloat((sp/st*100).toFixed(1)) : null;
-            });
+              return MONTHS.map((_,i)=>{
+                if(i>emi) return null;
+                sp+=gNum(fullRow(p26?.[sk(i)])?.[selKey]);
+                st+=gNum(fullRow(t26?.[sk(i)])?.[selKey]);
+                return st>0 ? parseFloat((sp/st*100).toFixed(1)) : null;
+              });
+            })();
             const ytdAr = pct(ytd(p26,selKey), ytd(t26,selKey));
             const avgMonthlyAr = monthlyAr.filter(v=>v!==null);
             const avgV = avgMonthlyAr.length>0 ? (avgMonthlyAr.reduce((a,b)=>a+b,0)/avgMonthlyAr.length).toFixed(1) : null;
@@ -1022,15 +1022,15 @@ function Dashboard({data,mode}){
               return v25m>0 ? parseFloat(((v26m-v25m)/v25m*100).toFixed(1)) : null;
             });
             // 누계 성장률 (1~i월 누적)
-            const cumGr = MONTHS.map((_,i)=>{
-              if(i>emi) return null;
+            const cumGr = (()=>{
               let s26=0, s25=0;
-              for(let j=0;j<=i;j++){
-                s26+=gNum(fullRow(p26?.[sk(j)])?.[selKey]);
-                s25+=gNum(fullRow(p25?.[sk(j)])?.[selKey]);
-              }
-              return s25>0 ? parseFloat(((s26-s25)/s25*100).toFixed(1)) : null;
-            });
+              return MONTHS.map((_,i)=>{
+                if(i>emi) return null;
+                s26+=gNum(fullRow(p26?.[sk(i)])?.[selKey]);
+                s25+=gNum(fullRow(p25?.[sk(i)])?.[selKey]);
+                return s25>0 ? parseFloat(((s26-s25)/s25*100).toFixed(1)) : null;
+              });
+            })();
             const ytdGr = grw(ytd(p26,selKey), ytd(p25,selKey));
             const allVals = [...monthlyGr, ...cumGr].filter(v=>v!==null);
             const hasData = allVals.length>0;
@@ -1265,6 +1265,7 @@ function Dashboard({data,mode}){
             .sort((a,b)=>b.v-a.v); // 높은 비중순 정렬
           // CE가 기준 — 모든 바는 CE 대비 비율
           const ceBarRef = ce>0 ? ce : 1;
+          const hp = ytd(p26,"휴대폰"); // 루프 밖으로 이동 (반복 계산 방지)
           return (
             <div style={{background:C.card2,border:`1px solid ${C.b1}`,borderRadius:14,padding:18}}>
               <div style={{color:C.text,fontWeight:800,fontSize:13,marginBottom:2}}>CE 비중 분석</div>
@@ -1301,7 +1302,6 @@ function Dashboard({data,mode}){
                   {/* 구분선 */}
                   <div style={{height:1,background:C.b1,margin:"2px 0"}}/>
                   {rows.map(({k,c,v})=>{
-                    const hp = ytd(p26,"휴대폰");
                     // 대외영업·B2B: 실적(v)에는 휴대폰 포함, 비중 계산 시에는 제외
                     const shareV = (k==="대외영업"||k==="B2B") ? v - hp : v;
                     const share = ce>0 ? (shareV/ce*100) : 0;
@@ -2390,8 +2390,7 @@ function Analysis({data,mode}){
   }) : null;
 
   // 누계 차트 (3개년)
-  const makeArr26 = (d,k) => { let s=0; return MONTHS.map((_,i)=>{if(i>emi)return null;s+=gNum(fullRow(d[sk(i)])?.[k]);return s;}); };
-  const makeArr25 = (d,k) => { let s=0; return MONTHS.map((_,i)=>{if(i>emi)return null;s+=gNum(fullRow(d[sk(i)])?.[k]);return s;}); };
+  const makeCumArr = (d,k) => { let s=0; return MONTHS.map((_,i)=>{if(i>emi)return null;s+=gNum(fullRow(d[sk(i)])?.[k]);return s;}); };
   const d24P = data["24"]?.[mode]?.perf||emptyM();
   const d25P = data["25"]?.[mode]?.perf||emptyM();
 
@@ -2641,9 +2640,9 @@ function Analysis({data,mode}){
             <span style={{color:C.muted,fontSize:9,fontWeight:400,marginLeft:6}}>3개년 비교</span>
           </div>
           {(()=>{
-            const c26 = makeArr26(pD,selKey);
-            const c25 = makeArr26(d25P,selKey);
-            const c24 = makeArr26(d24P,selKey);
+            const c26 = makeCumArr(pD,selKey);
+            const c25 = makeCumArr(d25P,selKey);
+            const c24 = makeCumArr(d24P,selKey);
             return c26.some(v=>v!==null) ? (
               <RichLineChart h={120} series={[
                 {data:c24,color:"#fbbf24",op:.7,medium:true,tooltipLabel:"24년"},
@@ -3102,7 +3101,7 @@ function App(){
 
   const [globalZoom,setGlobalZoom] = useState(()=>{
     const saved=parseInt(localStorage.getItem(FONT_SIZE_KEY));
-    return (saved>=80&&saved<=200)?saved:100;
+    return (saved>=50&&saved<=200)?saved:100;
   });
   // 양방향 zoom (center 기준)
   useEffect(()=>{

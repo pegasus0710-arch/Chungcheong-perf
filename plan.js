@@ -241,6 +241,29 @@ function RichEditor({value,onChange,placeholder,minHeight=220,readOnly=false,fon
     lastVal.current=v;  // emit 후엔 현재 HTML을 lastVal로 업데이트
   };
 
+  // ── 표 삽입 함수
+  const insertTable = (rows, cols) => {
+    const el = ref.current;
+    if(!el) return;
+    el.focus();
+    const cellStyle = "border:1px solid rgba(255,255,255,.25);padding:6px 10px;min-width:60px;font-size:13px;";
+    const headerStyle = cellStyle + "background:rgba(56,182,245,.12);font-weight:700;color:#e8f4fd;";
+    let html = `<table style="border-collapse:collapse;width:100%;margin:8px 0;">`;
+    for(let r=0; r<rows; r++){
+      html += "<tr>";
+      for(let c=0; c<cols; c++){
+        if(r===0){
+          html += `<th contenteditable="true" style="${headerStyle}">제목${c+1}</th>`;
+        } else {
+          html += `<td contenteditable="true" style="${cellStyle}">내용</td>`;
+        }
+      }
+      html += "</tr>";
+    }
+    html += "</table><br>";
+    execCmd("insertHTML", html);
+  };
+
   // ── 선택 영역에 span 스타일 적용 (execCommand 대체)
   const applyStyle=(cssProp,cssVal)=>{
     const el=ref.current;
@@ -686,7 +709,7 @@ function PlanApp(){
   const [editorKey,setEditorKey]=useState(0);  // 편집기 강제 remount용
   const [zoom,setZoom]=useState(()=>{
     const saved=parseInt(localStorage.getItem('cst_zoom_v2'));
-    return (saved>=80&&saved<=200)?saved:100;
+    return (saved>=50&&saved<=200)?saved:100;
   }); // 화면 배율 %
   // 양방향 zoom (center 기준)
   useEffect(()=>{
