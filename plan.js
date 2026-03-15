@@ -1079,9 +1079,13 @@ function PlanApp(){
           {/* ① 누계 실적 */}
           <div className="kpi-card kpi-card-lg" style={{border:`2px solid ${color}50`,borderTop:`3px solid ${color}`}}>
             <div className="kpi-card-header">
-              <div style={{display:"flex",alignItems:"center",gap:6}}>
+              <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
                 <div style={{width:8,height:8,borderRadius:2,background:color,boxShadow:`0 0 6px ${color}`}}/>
                 <span style={{color,fontWeight:800,fontSize:12}}>{part} 누계 실적</span>
+                {emi>=0&&<span style={{color:C.muted,fontSize:9,fontWeight:600,
+                  background:"rgba(255,255,255,.06)",borderRadius:3,padding:"1px 5px"}}>
+                  {MONTHS[emi]} 마감기준
+                </span>}
               </div>
               {ytdT>0&&ytdAr&&<span style={{color:pctC(ytdAr),fontSize:10,fontWeight:800,
                 background:pctC(ytdAr)+"18",borderRadius:4,padding:"2px 7px"}}>
