@@ -559,7 +559,7 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-function Dashboard({data,mode}){
+function Dashboard({data,mode,theme}){
   const [selKey,setSelKey] = useState("대외영업");
   const isMobile = useIsMobile();
   const mColor = C[mode] || C.accent;
@@ -1727,7 +1727,7 @@ function TargetUnlockModal({onSuccess,onClose,title="목표 입력 잠금 해제
   );
 }
 
-function InputTab({data,setData,mode,onSave,saveState,hasUnsaved,onImport,isTargetUnlocked,onRequestTargetUnlock,onTargetLock}){
+function InputTab({data,setData,mode,onSave,saveState,hasUnsaved,onImport,isTargetUnlocked,onRequestTargetUnlock,onTargetLock,theme}){
   const [yr,setYr]               = useState("26");
   const [mi,setMi]               = useState(0);
   const [inputMode,setInputMode] = useState("single");
@@ -2388,7 +2388,7 @@ function AnalysisBtn({label,active,onClick,clr,color}){
   );
 }
 
-function Analysis({data,mode}){
+function Analysis({data,mode,theme}){
   const [yr,    setYr]  = useState("26");
   const [selKey,setSel] = useState("대외영업");
   const isMobile = useIsMobile();
@@ -3417,15 +3417,16 @@ function App(){
             </div>
           ) : (
             <>
-              {tab==="dashboard"&&<Dashboard key={mode} data={data} mode={mode}/>}
-              {tab==="analysis" &&<Analysis  key={mode} data={data} mode={mode}/>}
+              {tab==="dashboard"&&<Dashboard key={mode} data={data} mode={mode} theme={theme}/>}
+              {tab==="analysis" &&<Analysis  key={mode} data={data} mode={mode} theme={theme}/>}
               {tab==="input"    &&<InputTab  key={mode} data={data} setData={handleSetData} mode={mode}
               onSave={handleSave} saveState={saveState} hasUnsaved={hasUnsaved}
               onImport={()=>setShowImport(true)}
               isTargetUnlocked={isTargetUnlocked}
               onRequestTargetUnlock={()=>setShowTgtPwModal(true)}
               onTargetLock={()=>{sessionStorage.removeItem(TGT_UNLOCK_KEY);setIsTargetUnlocked(false);}}
-              />}
+              theme={theme}
+              />}}
             </>
           )}
         </ErrorBoundary>
