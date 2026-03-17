@@ -261,7 +261,16 @@ function TablePicker({onInsert, BtnS}){
   const [showPicker, setShowPicker] = useState(false);
   const [hoverR, setHoverR] = useState(0);
   const [hoverC, setHoverC] = useState(0);
+  const [headerType, setHeaderType] = useState('row');
   const MAX_R=8, MAX_C=8;
+
+  const headerOpts=[
+    {v:'row',  l:'1행 제목'},
+    {v:'col',  l:'1열 제목'},
+    {v:'both', l:'행+열 제목'},
+    {v:'none', l:'제목 없음'},
+  ];
+
   return(
     <div style={{position:"relative",display:"inline-block"}}>
       <button
@@ -276,6 +285,22 @@ function TablePicker({onInsert, BtnS}){
           borderRadius:8,padding:8,marginTop:4,
           boxShadow:"0 4px 16px rgba(0,0,0,.15)",
         }}>
+          {/* 제목 방향 선택 */}
+          <div style={{display:"flex",gap:3,marginBottom:8,flexWrap:"wrap"}}>
+            {headerOpts.map(o=>(
+              <button key={o.v}
+                onMouseDown={e=>{e.preventDefault();setHeaderType(o.v);}}
+                style={{
+                  padding:"2px 7px",borderRadius:4,cursor:"pointer",
+                  fontSize:9,fontWeight:700,fontFamily:"inherit",
+                  border:`1px solid ${headerType===o.v?C.accent:C.b1}`,
+                  background:headerType===o.v?C.accent+"20":"transparent",
+                  color:headerType===o.v?C.accent:C.muted,
+                }}>
+                {o.l}
+              </button>
+            ))}
+          </div>
           <div style={{color:C.muted,fontSize:9,marginBottom:6,textAlign:"center",fontWeight:600}}>
             {hoverR>0&&hoverC>0?`${hoverR}행 × ${hoverC}열`:"표 크기 선택"}
           </div>
@@ -292,7 +317,7 @@ function TablePicker({onInsert, BtnS}){
                   onMouseEnter={()=>{setHoverR(ri+1);setHoverC(ci+1);}}
                   onMouseDown={e=>{
                     e.preventDefault();
-                    onInsert(ri+1,ci+1);
+                    onInsert(ri+1,ci+1,headerType);
                     setShowPicker(false);
                     setHoverR(0);setHoverC(0);
                   }}
@@ -315,7 +340,7 @@ function TablePicker({onInsert, BtnS}){
                 e.preventDefault();
                 const r=parseInt(document.getElementById("tbl-r").value)||3;
                 const c=parseInt(document.getElementById("tbl-c").value)||3;
-                onInsert(Math.min(r,20),Math.min(c,20));
+                onInsert(Math.min(r,20),Math.min(c,20),headerType);
                 setShowPicker(false);
               }}
               style={{...BtnS,padding:"1px 7px",fontSize:10}}>삽입</button>
@@ -366,8 +391,8 @@ function RichEditor({value,onChange,placeholder,minHeight=220,readOnly=false,fon
     lastVal.current=v;  // emit 후엔 현재 HTML을 lastVal로 업데이트
   };
 
-  // ── 표 삽입 함수
-  const insertTable = (rows, cols) => {
+  // ── 표 삽입 함수 (headerType: 'row'=1행제목, 'col'=1열제목, 'none'=제목없음)
+  const insertTable = (rows, cols, headerType='row') => {
     const el = ref.current;
     if(!el) return;
     el.focus();
@@ -377,8 +402,15 @@ function RichEditor({value,onChange,placeholder,minHeight=220,readOnly=false,fon
     for(let r=0; r<rows; r++){
       html += "<tr>";
       for(let c=0; c<cols; c++){
-        if(r===0){
-          html += `<th contenteditable="true" style="${headerStyle}">제목${c+1}</th>`;
+        const isHeader =
+          (headerType==='row' && r===0) ||
+          (headerType==='col' && c===0) ||
+          (headerType==='both' && (r===0||c===0));
+        if(isHeader){
+          const label = headerType==='row' ? `제목${c+1}`
+                      : headerType==='col' ? `제목${r+1}`
+                      : (r===0 ? `제목${c+1}` : `제목${r+1}`);
+          html += `<th contenteditable="true" style="${headerStyle}">${label}</th>`;
         } else {
           html += `<td contenteditable="true" style="${cellStyle}">내용</td>`;
         }
@@ -530,8 +562,10 @@ function RichEditor({value,onChange,placeholder,minHeight=220,readOnly=false,fon
     );
   }
 
+  const [editorH, setEditorH] = useState(minHeight);
+
   return(
-    <div style={{borderRadius:8,border:"1px solid rgba(56,182,245,.3)",overflow:"hidden",...style}}>
+    <div style={{borderRadius:8,border:"1px solid rgba(56,182,245,.3)",...style}}>
       {/* ── 툴바 */}
       <div style={{background:C.card2,borderBottom:`1px solid ${C.b1}`,
         padding:"6px 10px",display:"flex",gap:4,flexWrap:"wrap",alignItems:"center"}}>
@@ -654,10 +688,10 @@ function RichEditor({value,onChange,placeholder,minHeight=220,readOnly=false,fon
         }}
         data-placeholder={placeholder}
         style={{
-          minHeight,padding:"14px 16px",
+          minHeight:editorH,height:editorH,padding:"14px 16px",
           color:C.text,fontSize:14,lineHeight:1.7,
           outline:"none",background:C.bg,
-          wordBreak:"break-word",
+          wordBreak:"break-word",overflowY:"auto",
         }}
         onContextMenu={e=>{
           // 표 셀 우클릭 시 컨텍스트 메뉴
@@ -820,6 +854,36 @@ function RichEditor({value,onChange,placeholder,minHeight=220,readOnly=false,fon
           cursor:col-resize;
         }
       `}</style>
+      {/* ── 높이 조절 핸들 */}
+      <div
+        style={{
+          height:8,background:C.card2,
+          borderTop:`1px solid ${C.b1}`,
+          cursor:"ns-resize",
+          display:"flex",alignItems:"center",justifyContent:"center",
+          userSelect:"none",
+        }}
+        onMouseDown={e=>{
+          e.preventDefault();
+          const startY=e.clientY;
+          const startH=editorH;
+          const onMove=ev=>{
+            const newH=Math.max(100, startH+(ev.clientY-startY));
+            setEditorH(newH);
+          };
+          const onUp=()=>{
+            document.removeEventListener('mousemove',onMove);
+            document.removeEventListener('mouseup',onUp);
+          };
+          document.addEventListener('mousemove',onMove);
+          document.addEventListener('mouseup',onUp);
+        }}
+      >
+        <div style={{
+          width:32,height:3,borderRadius:2,
+          background:C.b2,pointerEvents:"none",
+        }}/>
+      </div>
     </div>
   );
 }

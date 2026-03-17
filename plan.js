@@ -638,8 +638,25 @@ function TablePicker(_ref5) {
     _useState8 = _slicedToArray(_useState7, 2),
     hoverC = _useState8[0],
     setHoverC = _useState8[1];
+  var _useState9 = useState('row'),
+    _useState0 = _slicedToArray(_useState9, 2),
+    headerType = _useState0[0],
+    setHeaderType = _useState0[1];
   var MAX_R = 8,
     MAX_C = 8;
+  var headerOpts = [{
+    v: 'row',
+    l: '1행 제목'
+  }, {
+    v: 'col',
+    l: '1열 제목'
+  }, {
+    v: 'both',
+    l: '행+열 제목'
+  }, {
+    v: 'none',
+    l: '제목 없음'
+  }];
   return /*#__PURE__*/React.createElement("div", {
     style: {
       position: "relative",
@@ -668,6 +685,32 @@ function TablePicker(_ref5) {
       boxShadow: "0 4px 16px rgba(0,0,0,.15)"
     }
   }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 3,
+      marginBottom: 8,
+      flexWrap: "wrap"
+    }
+  }, headerOpts.map(function (o) {
+    return /*#__PURE__*/React.createElement("button", {
+      key: o.v,
+      onMouseDown: function onMouseDown(e) {
+        e.preventDefault();
+        setHeaderType(o.v);
+      },
+      style: {
+        padding: "2px 7px",
+        borderRadius: 4,
+        cursor: "pointer",
+        fontSize: 9,
+        fontWeight: 700,
+        fontFamily: "inherit",
+        border: "1px solid ".concat(headerType === o.v ? C.accent : C.b1),
+        background: headerType === o.v ? C.accent + "20" : "transparent",
+        color: headerType === o.v ? C.accent : C.muted
+      }
+    }, o.l);
+  })), /*#__PURE__*/React.createElement("div", {
     style: {
       color: C.muted,
       fontSize: 9,
@@ -704,7 +747,7 @@ function TablePicker(_ref5) {
         },
         onMouseDown: function onMouseDown(e) {
           e.preventDefault();
-          onInsert(ri + 1, ci + 1);
+          onInsert(ri + 1, ci + 1, headerType);
           setShowPicker(false);
           setHoverR(0);
           setHoverC(0);
@@ -767,7 +810,7 @@ function TablePicker(_ref5) {
       e.preventDefault();
       var r = parseInt(document.getElementById("tbl-r").value) || 3;
       var c = parseInt(document.getElementById("tbl-c").value) || 3;
-      onInsert(Math.min(r, 20), Math.min(c, 20));
+      onInsert(Math.min(r, 20), Math.min(c, 20), headerType);
       setShowPicker(false);
     },
     style: _objectSpread(_objectSpread({}, BtnS), {}, {
@@ -836,8 +879,9 @@ function RichEditor(_ref6) {
     lastVal.current = v; // emit 후엔 현재 HTML을 lastVal로 업데이트
   };
 
-  // ── 표 삽입 함수
+  // ── 표 삽입 함수 (headerType: 'row'=1행제목, 'col'=1열제목, 'none'=제목없음)
   var insertTable = function insertTable(rows, cols) {
+    var headerType = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 'row';
     var el = ref.current;
     if (!el) return;
     el.focus();
@@ -847,8 +891,10 @@ function RichEditor(_ref6) {
     for (var r = 0; r < rows; r++) {
       html += "<tr>";
       for (var c = 0; c < cols; c++) {
-        if (r === 0) {
-          html += "<th contenteditable=\"true\" style=\"".concat(headerStyle, "\">\uC81C\uBAA9").concat(c + 1, "</th>");
+        var isHeader = headerType === 'row' && r === 0 || headerType === 'col' && c === 0 || headerType === 'both' && (r === 0 || c === 0);
+        if (isHeader) {
+          var label = headerType === 'row' ? "\uC81C\uBAA9".concat(c + 1) : headerType === 'col' ? "\uC81C\uBAA9".concat(r + 1) : r === 0 ? "\uC81C\uBAA9".concat(c + 1) : "\uC81C\uBAA9".concat(r + 1);
+          html += "<th contenteditable=\"true\" style=\"".concat(headerStyle, "\">").concat(label, "</th>");
         } else {
           html += "<td contenteditable=\"true\" style=\"".concat(cellStyle, "\">\uB0B4\uC6A9</td>");
         }
@@ -1099,11 +1145,14 @@ function RichEditor(_ref6) {
       }
     }), /*#__PURE__*/React.createElement("style", null, "\n          .rich-view ul, .rich-view ol { padding-left:1.6em; margin:4px 0; }\n          .rich-view ul li, .rich-view ol li { margin-bottom:3px; padding-left:2px; color:".concat(C.text, "; }\n          .rich-view p, .rich-view div, .rich-view span:not([style]) { color:").concat(C.text, "; }\n          .rich-view h2, .rich-view h3, .rich-view h4 { color:").concat(C.text, "; }\n          .rich-view table { border-collapse:collapse; width:100%; margin:8px 0; }\n          .rich-view td, .rich-view th { border:1px solid ").concat(C.b2, "; padding:6px 10px; font-size:13px; color:").concat(C.text, "; }\n          .rich-view th { background:").concat(C.accent, "18; font-weight:700; }\n        ")));
   }
+  var _useState1 = useState(minHeight),
+    _useState10 = _slicedToArray(_useState1, 2),
+    editorH = _useState10[0],
+    setEditorH = _useState10[1];
   return /*#__PURE__*/React.createElement("div", {
     style: _objectSpread({
       borderRadius: 8,
-      border: "1px solid rgba(56,182,245,.3)",
-      overflow: "hidden"
+      border: "1px solid rgba(56,182,245,.3)"
     }, style)
   }, /*#__PURE__*/React.createElement("div", {
     style: {
@@ -1298,14 +1347,16 @@ function RichEditor(_ref6) {
     },
     "data-placeholder": placeholder,
     style: {
-      minHeight: minHeight,
+      minHeight: editorH,
+      height: editorH,
       padding: "14px 16px",
       color: C.text,
       fontSize: 14,
       lineHeight: 1.7,
       outline: "none",
       background: C.bg,
-      wordBreak: "break-word"
+      wordBreak: "break-word",
+      overflowY: "auto"
     },
     onContextMenu: function onContextMenu(e) {
       // 표 셀 우클릭 시 컨텍스트 메뉴
@@ -1476,7 +1527,41 @@ function RichEditor(_ref6) {
       document.addEventListener('mousemove', onMove);
       document.addEventListener('mouseup', _onUp);
     }
-  }), /*#__PURE__*/React.createElement("style", null, "\n        [contenteditable]:empty:before{\n          content:attr(data-placeholder);\n          color:".concat(C.muted, ";\n          font-style:italic;pointer-events:none;\n          display:block;white-space:pre-line;\n        }\n        [contenteditable] ul,\n        [contenteditable] ol {\n          padding-left:1.6em;\n          margin:4px 0;\n        }\n        [contenteditable] ul li,\n        [contenteditable] ol li {\n          margin-bottom:3px;\n          padding-left:2px;\n          color:").concat(C.text, ";\n        }\n        [contenteditable] p,\n        [contenteditable] div,\n        [contenteditable] span:not([style]) {\n          color:").concat(C.text, ";\n        }\n        [contenteditable] h2,\n        [contenteditable] h3,\n        [contenteditable] h4 {\n          color:").concat(C.text, ";\n        }\n        [contenteditable] td,\n        [contenteditable] th {\n          cursor: default;\n        }\n        [contenteditable] td:hover,\n        [contenteditable] th:hover {\n          position: relative;\n        }\n        [contenteditable] td::after,\n        [contenteditable] th::after {\n          content:'';\n          position:absolute;\n          right:0;top:0;bottom:0;\n          width:5px;\n          cursor:col-resize;\n        }\n      ")));
+  }), /*#__PURE__*/React.createElement("style", null, "\n        [contenteditable]:empty:before{\n          content:attr(data-placeholder);\n          color:".concat(C.muted, ";\n          font-style:italic;pointer-events:none;\n          display:block;white-space:pre-line;\n        }\n        [contenteditable] ul,\n        [contenteditable] ol {\n          padding-left:1.6em;\n          margin:4px 0;\n        }\n        [contenteditable] ul li,\n        [contenteditable] ol li {\n          margin-bottom:3px;\n          padding-left:2px;\n          color:").concat(C.text, ";\n        }\n        [contenteditable] p,\n        [contenteditable] div,\n        [contenteditable] span:not([style]) {\n          color:").concat(C.text, ";\n        }\n        [contenteditable] h2,\n        [contenteditable] h3,\n        [contenteditable] h4 {\n          color:").concat(C.text, ";\n        }\n        [contenteditable] td,\n        [contenteditable] th {\n          cursor: default;\n        }\n        [contenteditable] td:hover,\n        [contenteditable] th:hover {\n          position: relative;\n        }\n        [contenteditable] td::after,\n        [contenteditable] th::after {\n          content:'';\n          position:absolute;\n          right:0;top:0;bottom:0;\n          width:5px;\n          cursor:col-resize;\n        }\n      ")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      height: 8,
+      background: C.card2,
+      borderTop: "1px solid ".concat(C.b1),
+      cursor: "ns-resize",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      userSelect: "none"
+    },
+    onMouseDown: function onMouseDown(e) {
+      e.preventDefault();
+      var startY = e.clientY;
+      var startH = editorH;
+      var onMove = function onMove(ev) {
+        var newH = Math.max(100, startH + (ev.clientY - startY));
+        setEditorH(newH);
+      };
+      var _onUp2 = function onUp() {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', _onUp2);
+      };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', _onUp2);
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 32,
+      height: 3,
+      borderRadius: 2,
+      background: C.b2,
+      pointerEvents: "none"
+    }
+  })));
 }
 function BackupModal(_ref1) {
   var onClose = _ref1.onClose,
@@ -1484,14 +1569,14 @@ function BackupModal(_ref1) {
     planTextData = _ref1.planTextData,
     onImportJson = _ref1.onImportJson,
     excelFn = _ref1.excelFn;
-  var _useState9 = useState("export"),
-    _useState0 = _slicedToArray(_useState9, 2),
-    tab = _useState0[0],
-    setTab = _useState0[1];
-  var _useState1 = useState(""),
-    _useState10 = _slicedToArray(_useState1, 2),
-    msg = _useState10[0],
-    setMsg = _useState10[1];
+  var _useState11 = useState("export"),
+    _useState12 = _slicedToArray(_useState11, 2),
+    tab = _useState12[0],
+    setTab = _useState12[1];
+  var _useState13 = useState(""),
+    _useState14 = _slicedToArray(_useState13, 2),
+    msg = _useState14[0],
+    setMsg = _useState14[1];
   var fileRef = useRef(null);
   var downloadJson = function downloadJson() {
     var blob = new Blob([JSON.stringify({
@@ -1819,82 +1904,82 @@ function TabBtn(_ref15) {
 
 // ── 메인 앱
 function PlanApp() {
-  var _useState11 = useState(null),
-    _useState12 = _slicedToArray(_useState11, 2),
-    perfData = _useState12[0],
-    setPerfData = _useState12[1];
-  var _useState13 = useState({}),
-    _useState14 = _slicedToArray(_useState13, 2),
-    planTextData = _useState14[0],
-    setPlanTextData = _useState14[1]; // Firebase 저장 텍스트 계획
-  var _useState15 = useState({}),
+  var _useState15 = useState(null),
     _useState16 = _slicedToArray(_useState15, 2),
-    textDraft = _useState16[0],
-    setTextDraft = _useState16[1]; // 로컬 미저장 텍스트
-  var _useState17 = useState("대외영업"),
+    perfData = _useState16[0],
+    setPerfData = _useState16[1];
+  var _useState17 = useState({}),
     _useState18 = _slicedToArray(_useState17, 2),
-    part = _useState18[0],
-    setPart = _useState18[1];
-  var _useState19 = useState("매출"),
+    planTextData = _useState18[0],
+    setPlanTextData = _useState18[1]; // Firebase 저장 텍스트 계획
+  var _useState19 = useState({}),
     _useState20 = _slicedToArray(_useState19, 2),
-    mode = _useState20[0],
-    setMode = _useState20[1];
-  var _useState21 = useState("26"),
+    textDraft = _useState20[0],
+    setTextDraft = _useState20[1]; // 로컬 미저장 텍스트
+  var _useState21 = useState("대외영업"),
     _useState22 = _slicedToArray(_useState21, 2),
-    yr = _useState22[0],
-    setYr = _useState22[1];
-  var _useState23 = useState("실적"),
+    part = _useState22[0],
+    setPart = _useState22[1];
+  var _useState23 = useState("매출"),
     _useState24 = _slicedToArray(_useState23, 2),
-    chartTab = _useState24[0],
-    setChartTab = _useState24[1];
-  var _useState25 = useState("실적"),
+    mode = _useState24[0],
+    setMode = _useState24[1];
+  var _useState25 = useState("26"),
     _useState26 = _slicedToArray(_useState25, 2),
-    cumChartTab = _useState26[0],
-    setCumChartTab = _useState26[1];
-  var _useState27 = useState("idle"),
+    yr = _useState26[0],
+    setYr = _useState26[1];
+  var _useState27 = useState("실적"),
     _useState28 = _slicedToArray(_useState27, 2),
-    saveState = _useState28[0],
-    setSaveState = _useState28[1];
-  var _useState29 = useState(false),
+    chartTab = _useState28[0],
+    setChartTab = _useState28[1];
+  var _useState29 = useState("실적"),
     _useState30 = _slicedToArray(_useState29, 2),
-    tempSaved = _useState30[0],
-    setTempSaved = _useState30[1]; // 로컬 임시저장 완료 표시
-  var _useState31 = useState(false),
+    cumChartTab = _useState30[0],
+    setCumChartTab = _useState30[1];
+  var _useState31 = useState("idle"),
     _useState32 = _slicedToArray(_useState31, 2),
-    dbReady = _useState32[0],
-    setDbReady = _useState32[1];
-  var _useState33 = useState("🔄 연결중..."),
+    saveState = _useState32[0],
+    setSaveState = _useState32[1];
+  var _useState33 = useState(false),
     _useState34 = _slicedToArray(_useState33, 2),
-    dbStatus = _useState34[0],
-    setDbStatus = _useState34[1];
-  var _useState35 = useState("annual"),
+    tempSaved = _useState34[0],
+    setTempSaved = _useState34[1]; // 로컬 임시저장 완료 표시
+  var _useState35 = useState(false),
     _useState36 = _slicedToArray(_useState35, 2),
-    selMonth = _useState36[0],
-    setSelMonth = _useState36[1]; // 'annual' | 0~11
-  var _useState37 = useState(false),
+    dbReady = _useState36[0],
+    setDbReady = _useState36[1];
+  var _useState37 = useState("🔄 연결중..."),
     _useState38 = _slicedToArray(_useState37, 2),
-    isEditing = _useState38[0],
-    setIsEditing = _useState38[1]; // 수정 모드 잠금
-  var _useState39 = useState(0),
+    dbStatus = _useState38[0],
+    setDbStatus = _useState38[1];
+  var _useState39 = useState("annual"),
     _useState40 = _slicedToArray(_useState39, 2),
-    editorKey = _useState40[0],
-    setEditorKey = _useState40[1]; // 편집기 강제 remount용
-  var _useState41 = useState(function () {
+    selMonth = _useState40[0],
+    setSelMonth = _useState40[1]; // 'annual' | 0~11
+  var _useState41 = useState(false),
+    _useState42 = _slicedToArray(_useState41, 2),
+    isEditing = _useState42[0],
+    setIsEditing = _useState42[1]; // 수정 모드 잠금
+  var _useState43 = useState(0),
+    _useState44 = _slicedToArray(_useState43, 2),
+    editorKey = _useState44[0],
+    setEditorKey = _useState44[1]; // 편집기 강제 remount용
+  var _useState45 = useState(function () {
       var saved = parseInt(localStorage.getItem('cst_zoom_v2'));
       return saved >= 50 && saved <= 200 ? saved : 100;
     }),
-    _useState42 = _slicedToArray(_useState41, 2),
-    zoom = _useState42[0],
-    setZoom = _useState42[1];
-  // ── 테마
-  var _useState43 = useState(_initThemeP),
-    _useState44 = _slicedToArray(_useState43, 2),
-    theme = _useState44[0],
-    setTheme = _useState44[1];
-  var _useState45 = useState(0),
     _useState46 = _slicedToArray(_useState45, 2),
-    themeKey = _useState46[0],
-    setThemeKey = _useState46[1];
+    zoom = _useState46[0],
+    setZoom = _useState46[1];
+  // ── 테마
+  var _useState47 = useState(_initThemeP),
+    _useState48 = _slicedToArray(_useState47, 2),
+    theme = _useState48[0],
+    setTheme = _useState48[1];
+  var _useState49 = useState(0),
+    _useState50 = _slicedToArray(_useState49, 2),
+    themeKey = _useState50[0],
+    setThemeKey = _useState50[1];
   var toggleTheme = useCallback(function () {
     var next = theme === 'dark' ? 'light' : 'dark';
     Object.assign(C, next === 'light' ? COLORS_LIGHT_P : COLORS_DARK_P);
@@ -1930,10 +2015,10 @@ function PlanApp() {
     localStorage.setItem('cst_zoom_v2', String(safeZoom));
   }, [zoom]);
   // (yr==="26"?"25":yr==="25"?"24":"23"): yr 기반 자동 계산 (별도 state 불필요)
-  var _useState47 = useState(false),
-    _useState48 = _slicedToArray(_useState47, 2),
-    showBackup = _useState48[0],
-    setShowBackup = _useState48[1];
+  var _useState51 = useState(false),
+    _useState52 = _slicedToArray(_useState51, 2),
+    showBackup = _useState52[0],
+    setShowBackup = _useState52[1];
   var autoSaveTimer = useRef(null);
   var LS_PERF_CACHE = "cst_v13"; // app.js와 동일 캐시키
 
