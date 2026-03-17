@@ -240,7 +240,7 @@ function AutoTextarea({value,onChange,placeholder,minHeight=220,readOnly=false,f
 }
 
 // ── 리치 에디터 (툴바 포함)
-function RichEditor({value,onChange,placeholder,minHeight=220,readOnly=false,fontSize=14,style={}}){
+function RichEditor({value,onChange,placeholder,minHeight=220,readOnly=false,fontSize=14,style={},theme="light"}){
   const ref=useRef(null);
 
   // 일반텍스트 → HTML 변환 (구버전 데이터 호환)
@@ -1960,6 +1960,7 @@ function PlanApp(){
               minHeight={200}
               readOnly={!isEditing}
               fontSize={14}
+              theme={theme}
             />
           </div>
 
@@ -1982,6 +1983,7 @@ function PlanApp(){
               minHeight={130}
               readOnly={!isEditing}
               fontSize={13}
+              theme={theme}
             />
           </div>
 
