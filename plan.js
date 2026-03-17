@@ -1979,3 +1979,4 @@ function PlanApp(){
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(<ErrorBoundary><PlanApp/></ErrorBoundary>);
+window.__APP_READY__=true;

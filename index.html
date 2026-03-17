@@ -198,15 +198,14 @@
         '<div style="color:#6b8fa8;font-size:11px">잠시만 기다려 주세요</div>',
         '</div>'
       ].join('');
-      // root에 React 컨텐츠가 마운트되면 숨김
+      // Babel 트랜스파일 완료 감지 (app.js 마지막 줄에서 신호)
       var t = setInterval(function() {
-        var root = document.getElementById("root");
-        if (root && root.children.length > 0) {
+        if (window.__APP_READY__) {
           clearInterval(t);
           document.getElementById("pw-gate").style.display = "none";
         }
       }, 100);
-      // 최대 60초 후 강제 숨김 (안전장치)
+      // 최대 60초 후 강제 숨김
       setTimeout(function() {
         clearInterval(t);
         document.getElementById("pw-gate").style.display = "none";

@@ -132,16 +132,15 @@
       '</div>'
     ].join('');
     var t = setInterval(function() {
-      var root = document.getElementById("root");
-      if (root && root.children.length > 0) {
+      if (window.__APP_READY__) {
         clearInterval(t);
         document.getElementById("pw-gate").style.display = "none";
       }
-    }, 200);
+    }, 100);
     setTimeout(function() {
       clearInterval(t);
       document.getElementById("pw-gate").style.display = "none";
-    }, 30000);
+    }, 60000);
   }
 
   async function sha256(str){
