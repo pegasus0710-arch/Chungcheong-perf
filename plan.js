@@ -1981,5 +1981,3 @@ function PlanApp(){
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(<ErrorBoundary><PlanApp/></ErrorBoundary>);
-// Babel 트랜스파일 + React 초기화 완료 신호 (캐시 있으면 즉시, 없으면 Firebase 완료 후)
-window.__planReady = true;

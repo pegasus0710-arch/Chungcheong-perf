@@ -95,36 +95,27 @@
   </div>
 </div>
 
-<!-- ── 로딩 스피너 (plan.html) ── -->
-<div id="plan-loading" style="display:none;position:fixed;inset:0;z-index:8888;
-  background:var(--bg,#07101f);flex-direction:column;align-items:center;justify-content:center;gap:14px;">
-  <div style="width:34px;height:34px;border-radius:50%;border:3px solid rgba(124,131,245,.2);
-    border-top-color:#7c83f5;animation:spin .8s linear infinite;"></div>
-  <span id="plan-loading-msg" style="color:#6a9ab8;font-size:13px;font-family:'Segoe UI',sans-serif;">앱 로딩 중...</span>
-</div>
-
-<!-- ── 앱 컨테이너: 항상 표시, pw-gate·loading이 오버레이로 덮음 ── -->
+<!-- ── 앱 컨테이너 ── -->
 <div id="root"></div>
 
 <script>
   const PW_HASH  = "7964106471ddb947a30a14c1f9a74a3fed4a7d6029f0047291138292c23a4c99";
   const AUTH_KEY = "cst_auth_v1";
+
+  // 인증된 경우 pw-gate 즉시 숨김
+  if (localStorage.getItem(AUTH_KEY)==="1" || sessionStorage.getItem(AUTH_KEY)==="1") {
+    document.getElementById("pw-gate").style.display = "none";
+  } else {
+    window.addEventListener("load", () => {
+      const el = document.getElementById("pw-input");
+      if (el) el.focus();
+    });
+  }
+
   async function sha256(str){
     const buf=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(str));
     return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
   }
-
-  // __planReady 감지 → loading 숨김
-  (function(){
-    const t = setInterval(()=>{
-      if(window.__planReady){
-        clearInterval(t);
-        document.getElementById("plan-loading").style.display="none";
-      }
-    }, 100);
-    // 최대 30초 후 강제 숨김
-    setTimeout(()=>{ clearInterval(t); document.getElementById("plan-loading").style.display="none"; }, 30000);
-  })();
 
   async function checkPw(){
     const input=document.getElementById("pw-input").value;
@@ -141,29 +132,19 @@
       document.getElementById("pw-input").value="";
     }
   }
-  (function(){
-    if(!(localStorage.getItem(AUTH_KEY)==="1"||sessionStorage.getItem(AUTH_KEY)==="1")){
-      document.getElementById("pw-gate").style.display="flex";
-      window.addEventListener("load",()=>{ const el=document.getElementById("pw-input"); if(el) el.focus(); });
-    }
-    // 인증된 상태면 로딩 스피너 표시 (pw-gate 없음)
-    if(localStorage.getItem(AUTH_KEY)==="1"||sessionStorage.getItem(AUTH_KEY)==="1"){
-      document.getElementById("plan-loading").style.display="flex";
-    }
-  })();
 </script>
 
-<script type="text/babel" src="plan.js"></script>
+<script type="text/babel" src="plan.js?v=3.2"></script>
 
-  <!-- ── Service Worker 등록 ── -->
-  <script>
-    if ("serviceWorker" in navigator) {
-      window.addEventListener("load", () => {
-        navigator.serviceWorker.register("./sw.js")
-          .catch(err => console.warn("SW 등록 실패:", err));
-      });
-    }
-  </script>
+<!-- ── Service Worker 등록 ── -->
+<script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("./sw.js")
+        .catch(err => console.warn("SW 등록 실패:", err));
+    });
+  }
+</script>
 
 </body>
 </html>
