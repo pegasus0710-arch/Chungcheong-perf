@@ -826,6 +826,7 @@ function PlanApp(){
   const [saveState,setSaveState]=useState("idle");
   const [tempSaved,setTempSaved]=useState(false); // 로컬 임시저장 완료 표시
   const [dbReady,setDbReady]=useState(false);
+  const [dbStatus,setDbStatus]=useState("🔄 연결중...");
   const [selMonth,setSelMonth]=useState("annual"); // 'annual' | 0~11
   const [isEditing,setIsEditing]=useState(false);   // 수정 모드 잠금
   const [editorKey,setEditorKey]=useState(0);  // 편집기 강제 remount용
@@ -882,11 +883,11 @@ function PlanApp(){
         const cached = JSON.parse(loc);
         if(cached) setPerfData(cached);
       }
+      // textDraft는 Firebase 로드 전에만 복원 (Firebase 로드 후 충돌 방지를 위해 플래그 사용)
       const savedText = localStorage.getItem(LS_TEXT);
       if(savedText) setTextDraft(JSON.parse(savedText));
     }catch{}
 
-    // 캐시 유무와 무관하게 즉시 화면 표시
     setDbReady(true);
 
     // Firebase 백그라운드 로드
@@ -904,12 +905,35 @@ function PlanApp(){
               setPerfData(d.perfData);
               localStorage.setItem(LS_PERF_CACHE, JSON.stringify(d.perfData));
             }
-            if(d.planTextData) setPlanTextData(d.planTextData);
+            if(d.planTextData){
+              setPlanTextData(d.planTextData);
+              // Firebase에서 최신 데이터 로드 완료 → localStorage 임시저장 제거
+              // (저장 완료된 데이터이므로 textDraft 불필요)
+              const savedText = localStorage.getItem(LS_TEXT);
+              if(savedText){
+                try{
+                  const draft = JSON.parse(savedText);
+                  // draft의 내용이 Firebase 데이터와 동일하면 제거
+                  // (미저장 변경사항이 없으면 textDraft 클리어)
+                  const draftStr = JSON.stringify(draft);
+                  const fbStr = JSON.stringify(d.planTextData);
+                  if(draftStr===fbStr){
+                    localStorage.removeItem(LS_TEXT);
+                    setTextDraft({});
+                  }
+                  // 다르면 유지 (사용자가 저장 안 한 변경사항 있음)
+                }catch{}
+              }
+            }
+            setDbStatus("✅ 로드완료");
+          } else {
+            setDbStatus("⚠ 문서없음");
           }
           return;
         }catch(e){
           retries--;
           if(retries < 0){
+            setDbStatus(e.message==="timeout"?"⚠ 연결지연":"❌ "+e.message.slice(0,20));
             console.error("Firebase 로드 오류:", e.message);
           } else {
             await new Promise(r=>setTimeout(r, 1500));
@@ -917,6 +941,7 @@ function PlanApp(){
         }
       }
     };
+    setDbStatus("🔄 연결중...");
     loadFirebase();
   },[]);
 
@@ -1198,8 +1223,17 @@ function PlanApp(){
               📋 달성계획
             </a>
           </nav>
-          {/* 우측: zoom + 테마 + 백업 */}
+          {/* 우측: zoom + 테마 + 백업 + dbStatus */}
           <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:6}}>
+            {/* DB 연결 상태 */}
+            <span style={{
+              fontSize:10,fontWeight:600,
+              color:dbStatus.startsWith("✅")?C.green
+                   :dbStatus.startsWith("❌")?C.red
+                   :dbStatus.startsWith("⚠")?C.orange
+                   :C.muted}}>
+              {dbStatus}
+            </span>
             {/* 테마 토글 */}
             <button onClick={toggleTheme} title={theme==='dark'?"라이트 모드로 전환":"다크 모드로 전환"} style={{
               padding:"4px 10px",borderRadius:6,cursor:"pointer",fontFamily:"inherit",
