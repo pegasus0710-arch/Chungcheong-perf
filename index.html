@@ -120,48 +120,19 @@
     }
     .shake { animation: shake .4s ease; }
     @keyframes spin { to { transform: rotate(360deg); } }
+    /* body 기본 배경 (Babel 로드 중 검은화면 방지) */
+    body { background: #e8edf4; }
   </style>
-  <!-- ── 테마 플래시 방지: body 클래스 즉시 적용 ── -->
+  <!-- 테마 즉시 적용 -->
   <script>
     (function(){
-      try{
+      try {
         const t = localStorage.getItem('cst_theme_v1') || 'light';
-        // body 배경 즉시 설정 (Babel 로드 중 검은 화면 방지)
-        if(t === 'light'){
-          document.documentElement.classList.add('theme-light');
-          document.addEventListener('DOMContentLoaded',function(){
-            document.body.classList.add('theme-light');
-            document.body.style.background = '#e8edf4';
-          });
-        } else {
-          document.addEventListener('DOMContentLoaded',function(){
-            document.body.style.background = '#07101f';
-          });
-        }
-      }catch(e){}
+        const bg = t === 'light' ? '#e8edf4' : '#07101f';
+        document.write('<style>body{background:' + bg + '}</style>');
+      } catch(e) {}
     })();
   </script>
-  <style>
-    /* Babel 로드 중 정적 로딩 화면 */
-    #static-loading {
-      position: fixed; inset: 0; z-index: 100;
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center; gap: 14px;
-      background: inherit;
-      transition: opacity .3s;
-    }
-    #static-loading .sl-spinner {
-      width: 32px; height: 32px; border-radius: 50%;
-      border: 3px solid rgba(129,140,248,.2);
-      border-top-color: #818cf8;
-      animation: sl-spin .8s linear infinite;
-    }
-    #static-loading .sl-text {
-      font-size: 13px; font-family: 'Segoe UI', sans-serif;
-      color: #818cf8; font-weight: 600;
-    }
-    @keyframes sl-spin { to { transform: rotate(360deg); } }
-  </style>
 </head>
 <body>
 
@@ -193,22 +164,41 @@
   </div>
 
   <!-- ── 앱 컨테이너 ── -->
-  <div id="root">
-    <!-- Babel/React 로드 완료 전 정적 로딩 화면 (React 마운트 시 자동 교체) -->
-    <div id="static-loading">
-      <div class="sl-spinner"></div>
-      <span class="sl-text">앱 로딩 중...</span>
-    </div>
-  </div>
+  <div id="root"></div>
 
   <script>
     const PW_HASH    = "7964106471ddb947a30a14c1f9a74a3fed4a7d6029f0047291138292c23a4c99";
     const SESSION_KEY = "cst_auth_v1";
+    const SESSION_MAX = 8 * 60 * 60 * 1000; // 8시간 세션 유효
+
+    // 세션 토큰 검증 (단순 "1" 이 아닌 타임스탬프 포함 토큰)
+    function isValidSession() {
+      try {
+        const raw = sessionStorage.getItem(SESSION_KEY);
+        if (!raw) return false;
+        const { token, ts } = JSON.parse(raw);
+        if (token !== "cst_ok" + PW_HASH.slice(0,8)) return false;
+        if (Date.now() - ts > SESSION_MAX) {
+          sessionStorage.removeItem(SESSION_KEY);
+          return false;
+        }
+        return true;
+      } catch { return false; }
+    }
+
+    function setSession() {
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify({
+        token: "cst_ok" + PW_HASH.slice(0,8),
+        ts: Date.now()
+      }));
+    }
 
     // 인증된 경우 pw-gate 즉시 숨김
-    if (sessionStorage.getItem(SESSION_KEY) === "1") {
+    if (isValidSession()) {
       document.getElementById("pw-gate").style.display = "none";
     } else {
+      // 혹시 잘못된 값 남아있으면 제거
+      sessionStorage.removeItem(SESSION_KEY);
       window.addEventListener("load", () => {
         const el = document.getElementById("pw-input");
         if (el) el.focus();
@@ -227,7 +217,7 @@
       if (!input) { errEl.textContent = "비밀번호를 입력해주세요."; return; }
       const hash = await sha256(input);
       if (hash === PW_HASH) {
-        sessionStorage.setItem(SESSION_KEY, "1");
+        setSession();
         document.getElementById("pw-gate").style.display = "none";
       } else {
         errEl.textContent = "비밀번호가 올바르지 않습니다.";
