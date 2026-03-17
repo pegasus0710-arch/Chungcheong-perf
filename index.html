@@ -215,19 +215,17 @@
         document.getElementById("db-loading").style.display = "flex";
         let waited = 0;
         const msgs = [
-          [0,    "앱 초기화 중..."],
-          [3000, "라이브러리 로드 중..."],
-          [8000, "데이터 연결 중..."],
-          [14000,"연결이 느립니다. 잠시만요..."],
+          [0,    "앱 로딩 중..."],
+          [4000, "데이터 연결 중..."],
+          [10000,"연결이 지연되고 있습니다..."],
         ];
         const msgEl = document.getElementById("loading-msg");
         const waitReact = setInterval(() => {
           waited += 100;
-          // 단계별 메시지 업데이트
           for (let i = msgs.length - 1; i >= 0; i--) {
             if (waited >= msgs[i][0]) { msgEl.textContent = msgs[i][1]; break; }
           }
-          if (window.__appReady || waited >= 20000) {
+          if (window.__appReady || waited >= 15000) {
             clearInterval(waitReact);
             document.getElementById("db-loading").style.display = "none";
             document.getElementById("root").style.display = "block";
@@ -249,10 +247,9 @@
         document.getElementById("db-loading").style.display = "flex";
         let waited = 0;
         const msgs = [
-          [0,    "앱 초기화 중..."],
-          [3000, "라이브러리 로드 중..."],
-          [8000, "데이터 연결 중..."],
-          [14000,"연결이 느립니다. 잠시만요..."],
+          [0,    "앱 로딩 중..."],
+          [4000, "데이터 연결 중..."],
+          [10000,"연결이 지연되고 있습니다..."],
         ];
         const msgEl = document.getElementById("loading-msg");
         const waitReact = setInterval(() => {
@@ -260,7 +257,7 @@
           for (let i = msgs.length - 1; i >= 0; i--) {
             if (waited >= msgs[i][0]) { msgEl.textContent = msgs[i][1]; break; }
           }
-          if (window.__appReady || waited >= 20000) {
+          if (window.__appReady || waited >= 15000) {
             clearInterval(waitReact);
             document.getElementById("db-loading").style.display = "none";
             document.getElementById("root").style.display = "block";

@@ -3195,65 +3195,62 @@ function App(){
   const DOC = () => window.db.collection("perf").doc("main");
 
   useEffect(()=>{
-    let cancelled = false;
-    (async()=>{
-      // 1단계: localStorage 캐시 즉시 표시 (화면 빠르게 뜨게)
-      try{
-        const loc = localStorage.getItem("cst_v13");
-        if(loc){
-          const cached = migrate(JSON.parse(loc));
-          if(!cancelled){
-            setData(cached);
-            setDbStatus("💾 캐시로드");
-            // 캐시 있으면 즉시 화면 표시 - Firebase 완료 안 기다림
-            setDbReady(true);
-            window.__appReady = true;
-          }
-        }
-      }catch{}
+    // ── React 마운트 즉시 앱 표시 신호 (Firebase와 무관)
+    // localStorage 캐시 있으면 즉시, 없어도 500ms 후 화면 오픈
+    const showTimer = setTimeout(()=>{
+      setDbReady(true);
+      window.__appReady = true;
+    }, 500);
 
-      // 2단계: Firebase 실제 데이터 로드 (최대 12초 타임아웃)
-      const timeoutMs = 12000;
-      const fetchWithTimeout = (promise, ms) =>
-        Promise.race([promise, new Promise((_,r)=>setTimeout(()=>r(new Error("timeout")), ms))]);
+    // localStorage 캐시 즉시 로드
+    try{
+      const loc = localStorage.getItem("cst_v13");
+      if(loc){
+        const cached = migrate(JSON.parse(loc));
+        setData(cached);
+        setDbStatus("💾 캐시로드");
+        // 캐시 있으면 즉시 표시
+        clearTimeout(showTimer);
+        setDbReady(true);
+        window.__appReady = true;
+      }
+    }catch(e){ console.warn("캐시 로드 오류:", e); }
 
-      let retries = 2;
+    // Firebase 백그라운드 로드 (화면 표시와 무관)
+    let retries = 2;
+    const loadFirebase = async () => {
       while(retries >= 0){
         try{
-          const snap = await fetchWithTimeout(DOC().get(), timeoutMs);
-          if(cancelled) return;
+          const snap = await Promise.race([
+            DOC().get(),
+            new Promise((_,rej)=>setTimeout(()=>rej(new Error("timeout")), 12000))
+          ]);
           if(snap.exists){
-            const raw  = snap.data().perfData;
+            const raw = snap.data().perfData;
             const loaded = migrate(raw);
             const ce24 = loaded?.["24"]?.["매출"]?.perf?.["0"]?.CE;
             setDbStatus(gNum(ce24)>0 ? "✅ 로드완료" : "✅ 연결됨");
             setData(loaded);
+            setDbReady(true);
+            window.__appReady = true;
             localStorage.setItem("cst_v13", JSON.stringify(loaded));
           } else {
             setDbStatus("⚠ 문서없음");
           }
-          break; // 성공 시 루프 종료
+          return; // 성공
         }catch(e){
           retries--;
           if(retries < 0){
-            if(!cancelled){
-              const isTimeout = e.message === "timeout";
-              setDbStatus(isTimeout ? "⚠ 연결지연" : "❌ "+e.message.slice(0,20));
-            }
+            setDbStatus(e.message==="timeout" ? "⚠ 연결지연" : "❌ "+e.message.slice(0,20));
           } else {
-            // 재시도 전 1.5초 대기
             await new Promise(r=>setTimeout(r, 1500));
           }
         }
       }
+    };
 
-      // 캐시 없었던 경우 여기서 최종 신호
-      if(!cancelled){
-        setDbReady(true);
-        window.__appReady = true;
-      }
-    })();
-    return () => { cancelled = true; };
+    loadFirebase();
+    return () => clearTimeout(showTimer);
   },[]);
 
   const handleSetData=useCallback(upd=>{
