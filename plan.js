@@ -1785,9 +1785,9 @@ function PlanApp(){
               // 목표 성장률: 목표 vs 전년(연간전년)
               const annPrev_x  = mPrev.reduce((a,b)=>a+b,0);
               const grBase_x   = selMi!==null ? mPrev[selMi] : annPrev_x;
-              const selGr_x    = grBase_x>0&&selTgt_x>0?((selTgt_x-grBase_x)/grBase_x*100).toFixed(1):null;
+              const selGr_x    = grBase_x>0&&selTgt_x>0?((selTgt_x-grBase_x)/grBase_x*100).toFixed(1):null; // 목표 성장률
               const selAr_x    = selTgt_x>0&&selPerf_x>0?(selPerf_x/selTgt_x*100).toFixed(1):null;
-              const selActGr_x = selPrev_x>0&&selPerf_x>0?((selPerf_x-selPrev_x)/selPrev_x*100).toFixed(1):null;
+              const selActGr_x = selPrev_x>0&&selPerf_x>0?((selPerf_x-selPrev_x)/selPrev_x*100).toFixed(1):null; // 실적 성장률
               const mc = m==="매출"?C.매출:C.판매;
               const hasPerf = selMi!==null ? selPerf_x>0 : ytdP_x>0;
               const emiLabel = emi_x>=0 ? MONTHS[emi_x] : "";
@@ -1877,18 +1877,14 @@ function PlanApp(){
                 {/* 양쪽 정렬, 카드 균등 분배 */}
                 <div style={{display:"flex",gap:6,flexWrap:"wrap",justifyContent:"space-between"}}>
                   {SUB_PARTS.map(({k,indent})=>{
-                    // 매출 기준
+                    // 매출/선택모드 기준
                     const plTgt  = selMi!==null?gNum((fullRow(tD_pl[sk(selMi)])||{})[k]):MONTHS.reduce((a,_,i)=>a+gNum((fullRow(tD_pl[sk(i)])||{})[k]),0);
-                    const plPerf = selMi!==null?gNum((fullRow(pD_pl[sk(selMi)])||{})[k]):MONTHS.slice(0,Math.max(emi_pl+1,0)).reduce((a,_,i)=>a+gNum((fullRow(pD_pl[sk(i)])||{})[k]),0);
                     const plPrev = selMi!==null?gNum((fullRow(pD25_pl[sk(selMi)])||{})[k]):MONTHS.reduce((a,_,i)=>a+gNum((fullRow(pD25_pl[sk(i)])||{})[k]),0);
                     const plGr   = plPrev>0&&plTgt>0?((plTgt-plPrev)/plPrev*100).toFixed(1):null;
-                    const plAr   = plTgt>0&&plPerf>0?(plPerf/plTgt*100).toFixed(1):null;
                     // 반대 모드 기준
                     const otTgt  = selMi!==null?gNum((fullRow(tD_ot[sk(selMi)])||{})[k]):MONTHS.reduce((a,_,i)=>a+gNum((fullRow(tD_ot[sk(i)])||{})[k]),0);
-                    const otPerf = selMi!==null?gNum((fullRow(pD_ot[sk(selMi)])||{})[k]):MONTHS.slice(0,Math.max(emi_ot+1,0)).reduce((a,_,i)=>a+gNum((fullRow(pD_ot[sk(i)])||{})[k]),0);
                     const otPrev = selMi!==null?gNum((fullRow(pD25_ot[sk(selMi)])||{})[k]):MONTHS.reduce((a,_,i)=>a+gNum((fullRow(pD25_ot[sk(i)])||{})[k]),0);
                     const otGr   = otPrev>0&&otTgt>0?((otTgt-otPrev)/otPrev*100).toFixed(1):null;
-                    const otAr   = otTgt>0&&otPerf>0?(otPerf/otTgt*100).toFixed(1):null;
                     const kc = KC[k]||C.accent;
                     const mc1 = mode==="매출"?C.매출:C.판매;
                     const mc2 = otherMode==="매출"?C.매출:C.판매;
@@ -1914,12 +1910,12 @@ function PlanApp(){
                               {plTgt>0?Math.round(plTgt).toLocaleString()+"억":"─"}
                             </span>
                           </div>
-                          <div style={{display:"flex",gap:4,marginTop:2,justifyContent:"flex-end"}}>
+                          <div style={{display:"flex",justifyContent:"space-between",marginTop:2}}>
+                            <span style={{color:C.muted,fontSize:8}}>
+                              전년 {plPrev>0?Math.round(plPrev).toLocaleString()+"억":"─"}
+                            </span>
                             {plGr!==null&&<span style={{color:grwC(plGr),fontSize:8,fontWeight:700}}>
                               {gNum(plGr)>=0?"▲":"▼"}{Math.abs(gNum(plGr)).toFixed(1)}%
-                            </span>}
-                            {plAr&&<span style={{color:C.accent,fontSize:8,fontWeight:700}}>
-                              {Math.round(gNum(plAr))}%달성
                             </span>}
                           </div>
                         </div>
@@ -1933,12 +1929,12 @@ function PlanApp(){
                               {otTgt>0?Math.round(otTgt).toLocaleString()+"억":"─"}
                             </span>
                           </div>
-                          <div style={{display:"flex",gap:4,marginTop:2,justifyContent:"flex-end"}}>
+                          <div style={{display:"flex",justifyContent:"space-between",marginTop:2}}>
+                            <span style={{color:C.muted,fontSize:8}}>
+                              전년 {otPrev>0?Math.round(otPrev).toLocaleString()+"억":"─"}
+                            </span>
                             {otGr!==null&&<span style={{color:grwC(otGr),fontSize:8,fontWeight:700}}>
                               {gNum(otGr)>=0?"▲":"▼"}{Math.abs(gNum(otGr)).toFixed(1)}%
-                            </span>}
-                            {otAr&&<span style={{color:C.accent,fontSize:8,fontWeight:700}}>
-                              {Math.round(gNum(otAr))}%달성
                             </span>}
                           </div>
                         </div>
