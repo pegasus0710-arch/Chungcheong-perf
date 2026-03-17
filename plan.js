@@ -809,35 +809,29 @@ function PlanApp(){
 
   // Firebase 로드
   useEffect(()=>{
-    let cancelled = false;
-    (async()=>{
-      // 1단계: localStorage 캐시 즉시 표시
-      try{
-        const loc = localStorage.getItem(LS_PERF_CACHE);
-        if(loc){
-          const cached = JSON.parse(loc);
-          if(!cancelled && cached){
-            setPerfData(cached);
-            // 캐시 있으면 즉시 화면 표시
-            setDbReady(true);
-          }
+    // localStorage 캐시 즉시 표시
+    try{
+      const loc = localStorage.getItem(LS_PERF_CACHE);
+      if(loc){
+        const cached = JSON.parse(loc);
+        if(cached){
+          setPerfData(cached);
+          setDbReady(true);
         }
-        // planText 임시저장도 복원
-        const savedText = localStorage.getItem(LS_TEXT);
-        if(savedText && !cancelled) setTextDraft(JSON.parse(savedText));
-      }catch{}
+      }
+      const savedText = localStorage.getItem(LS_TEXT);
+      if(savedText) setTextDraft(JSON.parse(savedText));
+    }catch{}
 
-      // 2단계: Firebase 실제 로드 (타임아웃 + 재시도)
-      const fetchWithTimeout = (promise, ms) =>
-        Promise.race([promise, new Promise((_,r)=>setTimeout(()=>r(new Error("timeout")), ms))]);
-
-      let retries = 2;
+    // Firebase 백그라운드 로드
+    let retries = 2;
+    const loadFirebase = async () => {
       while(retries >= 0){
         try{
-          const snap = await fetchWithTimeout(
-            window.db.collection("perf").doc("main").get(), 12000
-          );
-          if(cancelled) return;
+          const snap = await Promise.race([
+            window.db.collection("perf").doc("main").get(),
+            new Promise((_,r)=>setTimeout(()=>r(new Error("timeout")), 12000))
+          ]);
           if(snap.exists){
             const d = snap.data();
             if(d.perfData){
@@ -846,20 +840,20 @@ function PlanApp(){
             }
             if(d.planTextData) setPlanTextData(d.planTextData);
           }
-          break;
+          setDbReady(true);
+          return;
         }catch(e){
           retries--;
           if(retries < 0){
             console.error("Firebase 로드 오류:", e.message);
+            setDbReady(true); // 실패해도 화면 표시
           } else {
             await new Promise(r=>setTimeout(r, 1500));
           }
         }
       }
-
-      if(!cancelled) setDbReady(true);
-    })();
-    return () => { cancelled = true; };
+    };
+    loadFirebase();
   },[]);
 
   // 텍스트 draft 3초 자동저장 (임시저장 표시)

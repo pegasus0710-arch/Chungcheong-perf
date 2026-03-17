@@ -100,10 +100,11 @@
   background:var(--bg,#07101f);flex-direction:column;align-items:center;justify-content:center;gap:14px;">
   <div style="width:34px;height:34px;border-radius:50%;border:3px solid rgba(124,131,245,.2);
     border-top-color:#7c83f5;animation:spin .8s linear infinite;"></div>
-  <span id="plan-loading-msg" style="color:#6a9ab8;font-size:13px;font-family:'Segoe UI',sans-serif;">불러오는 중...</span>
+  <span id="plan-loading-msg" style="color:#6a9ab8;font-size:13px;font-family:'Segoe UI',sans-serif;">앱 로딩 중...</span>
 </div>
 
-<div id="root" style="display:none;"></div>
+<!-- ── 앱 컨테이너: 항상 표시, pw-gate·loading이 오버레이로 덮음 ── -->
+<div id="root"></div>
 
 <script>
   const PW_HASH  = "7964106471ddb947a30a14c1f9a74a3fed4a7d6029f0047291138292c23a4c99";
@@ -113,22 +114,17 @@
     return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
   }
 
-  function showApp(){
-    document.getElementById("plan-loading").style.display="none";
-    document.getElementById("root").style.display="block";
-  }
-
-  function startWait(){
-    document.getElementById("plan-loading").style.display="flex";
-    const msgEl = document.getElementById("plan-loading-msg");
-    const msgs = [[0,"불러오는 중..."],[3000,"라이브러리 로드 중..."],[8000,"데이터 연결 중..."],[14000,"연결이 느립니다. 잠시만요..."]];
-    let waited = 0;
+  // __planReady 감지 → loading 숨김
+  (function(){
     const t = setInterval(()=>{
-      waited += 100;
-      for(let i=msgs.length-1;i>=0;i--){ if(waited>=msgs[i][0]){msgEl.textContent=msgs[i][1];break;} }
-      if(window.__planReady || waited >= 20000){ clearInterval(t); showApp(); }
+      if(window.__planReady){
+        clearInterval(t);
+        document.getElementById("plan-loading").style.display="none";
+      }
     }, 100);
-  }
+    // 최대 30초 후 강제 숨김
+    setTimeout(()=>{ clearInterval(t); document.getElementById("plan-loading").style.display="none"; }, 30000);
+  })();
 
   async function checkPw(){
     const input=document.getElementById("pw-input").value;
@@ -139,7 +135,6 @@
     if(hash===PW_HASH){
       localStorage.setItem(AUTH_KEY,"1");
       document.getElementById("pw-gate").style.display="none";
-      startWait();
     } else {
       errEl.textContent="비밀번호가 올바르지 않습니다.";
       boxEl.classList.remove("shake");void boxEl.offsetWidth;boxEl.classList.add("shake");
@@ -147,11 +142,13 @@
     }
   }
   (function(){
-    if(localStorage.getItem(AUTH_KEY)==="1"||sessionStorage.getItem(AUTH_KEY)==="1"){
-      startWait();
-    } else {
+    if(!(localStorage.getItem(AUTH_KEY)==="1"||sessionStorage.getItem(AUTH_KEY)==="1")){
       document.getElementById("pw-gate").style.display="flex";
-      window.addEventListener("load",()=>document.getElementById("pw-input").focus());
+      window.addEventListener("load",()=>{ const el=document.getElementById("pw-input"); if(el) el.focus(); });
+    }
+    // 인증된 상태면 로딩 스피너 표시 (pw-gate 없음)
+    if(localStorage.getItem(AUTH_KEY)==="1"||sessionStorage.getItem(AUTH_KEY)==="1"){
+      document.getElementById("plan-loading").style.display="flex";
     }
   })();
 </script>
