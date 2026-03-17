@@ -3134,7 +3134,6 @@ function App(){
   const [saveState, setSaveState] = useState("idle");
   const [hasUnsaved,setHasUnsaved]= useState(false);
   const [dbStatus,  setDbStatus]  = useState("연결중...");
-  const [dbReady,   setDbReady]   = useState(false);
   const [showReport,setShowReport]= useState(false);
   const [showImport,setShowImport]= useState(false);
   const [showBackupMain,setShowBackupMain] = useState(false);
@@ -3204,9 +3203,6 @@ function App(){
         setDbStatus("💾 캐시로드");
       }
     }catch(e){ console.warn("캐시 로드 오류:", e); }
-
-    // 캐시 유무와 무관하게 즉시 화면 표시
-    setDbReady(true);
 
     // Firebase 백그라운드 로드
     let retries = 2;
@@ -3424,30 +3420,16 @@ function App(){
         </div>
         <div id="app-content" style={{transformOrigin:"top center",transition:"transform .15s ease",position:"relative"}}>
         <ErrorBoundary key={tab+mode}>
-          {!dbReady ? (
-            /* Firebase 응답 전 — 빈 데이터로 렌더 방지 */
-            <div style={{padding:60,display:"flex",flexDirection:"column",
-              alignItems:"center",justifyContent:"center",gap:14}}>
-              <div style={{width:28,height:28,borderRadius:"50%",
-                border:"3px solid rgba(56,182,245,.15)",
-                borderTopColor:"#38b6f5",
-                animation:"spin 0.9s linear infinite"}}/>
-              <span style={{color:C.muted,fontSize:12}}>데이터 불러오는 중...</span>
-            </div>
-          ) : (
-            <>
-              {tab==="dashboard"&&<Dashboard key={mode} data={data} mode={mode} theme={theme}/>}
-              {tab==="analysis" &&<Analysis  key={mode} data={data} mode={mode} theme={theme}/>}
-              {tab==="input"    &&<InputTab  key={mode} data={data} setData={handleSetData} mode={mode}
-              onSave={handleSave} saveState={saveState} hasUnsaved={hasUnsaved}
-              onImport={()=>setShowImport(true)}
-              isTargetUnlocked={isTargetUnlocked}
-              onRequestTargetUnlock={()=>setShowTgtPwModal(true)}
-              onTargetLock={()=>{sessionStorage.removeItem(TGT_UNLOCK_KEY);setIsTargetUnlocked(false);}}
-              theme={theme}
-              />
-            </>
-          )}
+          {tab==="dashboard"&&<Dashboard key={mode} data={data} mode={mode} theme={theme}/>}
+          {tab==="analysis" &&<Analysis  key={mode} data={data} mode={mode} theme={theme}/>}
+          {tab==="input"    &&<InputTab  key={mode} data={data} setData={handleSetData} mode={mode}
+            onSave={handleSave} saveState={saveState} hasUnsaved={hasUnsaved}
+            onImport={()=>setShowImport(true)}
+            isTargetUnlocked={isTargetUnlocked}
+            onRequestTargetUnlock={()=>setShowTgtPwModal(true)}
+            onTargetLock={()=>{sessionStorage.removeItem(TGT_UNLOCK_KEY);setIsTargetUnlocked(false);}}
+            theme={theme}
+          />}
         </ErrorBoundary>
         </div>{/* app-content 끝 */}
       </div>
