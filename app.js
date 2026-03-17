@@ -402,8 +402,7 @@ function RichLineChart({series, labels, h=160, showAvg=false, pctMode=false, grM
                 return (
                   <text key={i} x={p.x} y={labelY}
                     fill={s.color} fontSize={9} fontWeight={700}
-                    textAnchor={anchor}
-                    style={{filter:"drop-shadow(0 1px 2px rgba(0,0,0,.8))"}}>
+                    textAnchor={anchor}>
                     {dispV}
                   </text>
                 );
@@ -429,11 +428,9 @@ function RichLineChart({series, labels, h=160, showAvg=false, pctMode=false, grM
           position:"absolute",
           left:`${Math.min(tooltip.tx+2,75)}%`,
           top:`${Math.max(tooltip.ty-10,0)}%`,
-          background:C.tooltip,border:`1px solid ${C.b1}`,backdropFilter:"blur(6px)",
-          border:`1px solid rgba(255,255,255,.12)`,
+          background:C.tooltip,border:`1px solid ${C.b1}`,
           borderRadius:8,padding:"8px 12px",
           pointerEvents:"none",zIndex:10,
-          boxShadow:"0 4px 16px rgba(0,0,0,.5)",
           minWidth:100,
         }}>
           <div style={{color:C.muted,fontSize:9,marginBottom:4,fontWeight:700}}>

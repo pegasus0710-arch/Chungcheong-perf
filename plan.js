@@ -172,8 +172,7 @@ function MiniChart({series,labels,h=240,pctMode=false,grMode=false}){
                 const goUp=!prev||p.y<prev.y;
                 return(
                   <text key={pi} x={p.x} y={p.y+(goUp?-13:17)} fill={s.color} fontSize={10} fontWeight={700}
-                    textAnchor={p.x<PL+35?"start":p.x>W-PR-35?"end":"middle"}
-                    style={{filter:"drop-shadow(0 1px 3px rgba(0,0,0,.95))"}}>
+                    textAnchor={p.x<PL+35?"start":p.x>W-PR-35?"end":"middle"}>
                     {pctMode||grMode?Math.round(p.v)+"%":Math.round(p.v)}
                   </text>
                 );
@@ -196,9 +195,9 @@ function MiniChart({series,labels,h=240,pctMode=false,grMode=false}){
       </svg>
       {tip&&(
         <div style={{position:"absolute",left:`${Math.min(tip.xi/11*84+4,62)}%`,top:"10%",
-          background:C.tooltip,border:`1px solid ${C.b2}`,backdropFilter:"blur(6px)",
+          background:C.tooltip,border:`1px solid ${C.b1}`,
           borderRadius:8,padding:"10px 14px",pointerEvents:"none",zIndex:10,
-          boxShadow:"0 4px 16px rgba(0,0,0,.6)",minWidth:120}}>
+          minWidth:120}}>
           <div style={{color:C.muted,fontSize:10,marginBottom:5,fontWeight:700}}>{labels[tip.mi]}</div>
           {tip.items.map((it,i)=>(
             <div key={i} style={{display:"flex",justifyContent:"space-between",gap:14,marginBottom:3}}>
