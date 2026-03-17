@@ -1888,6 +1888,12 @@ function PlanApp(){
                     const kc = KC[k]||C.accent;
                     const mc1 = mode==="매출"?C.매출:C.판매;
                     const mc2 = otherMode==="매출"?C.매출:C.판매;
+                    // 대외영업 전체 목표 합계 (비중 계산용, 휴대폰 제외)
+                    const daePartsForShare=["혼수","뉴홈","입주","이사","SAC","거주중","B2B","SMB","농협"];
+                    const daeTotalPl = daePartsForShare.reduce((a,pk)=>a+(selMi!==null?gNum((fullRow(tD_pl[sk(selMi)])||{})[pk]):MONTHS.reduce((s,_,i)=>s+gNum((fullRow(tD_pl[sk(i)])||{})[pk]),0)),0);
+                    const daeTotalOt = daePartsForShare.reduce((a,pk)=>a+(selMi!==null?gNum((fullRow(tD_ot[sk(selMi)])||{})[pk]):MONTHS.reduce((s,_,i)=>s+gNum((fullRow(tD_ot[sk(i)])||{})[pk]),0)),0);
+                    const plShare = k!=="휴대폰"&&daeTotalPl>0&&plTgt>0?(plTgt/daeTotalPl*100):null;
+                    const otShare = k!=="휴대폰"&&daeTotalOt>0&&otTgt>0?(otTgt/daeTotalOt*100):null;
                     return(
                       <div key={k} style={{
                         flex:"1 1 calc(10% - 6px)",minWidth:100,maxWidth:160,
@@ -1903,7 +1909,7 @@ function PlanApp(){
                           <span style={{color:kc,fontSize:10,fontWeight:800}}>{k}</span>
                         </div>
                         {/* 매출 행 */}
-                        <div style={{marginBottom:5}}>
+                        <div style={{marginBottom:4}}>
                           <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
                             <span style={{color:mc1,fontSize:8,fontWeight:700}}>{mode}</span>
                             <span style={{color:plTgt>0?C.text:C.muted,fontSize:12,fontWeight:900}}>
@@ -1918,9 +1924,22 @@ function PlanApp(){
                               {gNum(plGr)>=0?"▲":"▼"}{Math.abs(gNum(plGr)).toFixed(1)}%
                             </span>}
                           </div>
+                          {/* 비중 바 (휴대폰 제외) */}
+                          {plShare!==null&&(
+                            <div style={{marginTop:4}}>
+                              <div style={{height:4,background:C.b1,borderRadius:2,overflow:"hidden"}}>
+                                <div style={{height:"100%",width:`${Math.min(plShare,100)}%`,
+                                  background:`linear-gradient(90deg,${mc1}99,${mc1})`,
+                                  borderRadius:2,transition:"width .5s"}}/>
+                              </div>
+                              <div style={{color:mc1,fontSize:7,fontWeight:700,marginTop:1,textAlign:"right"}}>
+                                {plShare.toFixed(1)}%
+                              </div>
+                            </div>
+                          )}
                         </div>
                         {/* 구분선 */}
-                        <div style={{height:1,background:C.b1,marginBottom:5}}/>
+                        <div style={{height:1,background:C.b1,marginBottom:4}}/>
                         {/* 판매 행 */}
                         <div>
                           <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
@@ -1937,6 +1956,19 @@ function PlanApp(){
                               {gNum(otGr)>=0?"▲":"▼"}{Math.abs(gNum(otGr)).toFixed(1)}%
                             </span>}
                           </div>
+                          {/* 비중 바 (휴대폰 제외) */}
+                          {otShare!==null&&(
+                            <div style={{marginTop:4}}>
+                              <div style={{height:4,background:C.b1,borderRadius:2,overflow:"hidden"}}>
+                                <div style={{height:"100%",width:`${Math.min(otShare,100)}%`,
+                                  background:`linear-gradient(90deg,${mc2}99,${mc2})`,
+                                  borderRadius:2,transition:"width .5s"}}/>
+                              </div>
+                              <div style={{color:mc2,fontSize:7,fontWeight:700,marginTop:1,textAlign:"right"}}>
+                                {otShare.toFixed(1)}%
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
