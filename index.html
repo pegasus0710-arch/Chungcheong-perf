@@ -119,20 +119,6 @@
       80%      { transform: translateX(5px); }
     }
     .shake { animation: shake .4s ease; }
-    /* ── 로딩 스피너 ── */
-    #db-loading {
-      position: fixed; inset: 0; z-index: 8888;
-      background: var(--pw-bg);
-      display: none; align-items: center; justify-content: center;
-      flex-direction: column; gap: 16px;
-    }
-    .spinner {
-      width: 36px; height: 36px;
-      border: 3px solid var(--pw-spin-border);
-      border-top-color: var(--pw-spin-top);
-      border-radius: 50%;
-      animation: spin .7s linear infinite;
-    }
     @keyframes spin { to { transform: rotate(360deg); } }
   </style>
   <!-- ── 테마 플래시 방지: body 클래스 즉시 적용 ── -->
@@ -179,20 +165,22 @@
     </div>
   </div>
 
-  <!-- ── Firebase 데이터 로딩 중 스피너 ── -->
-  <div id="db-loading">
-    <div class="spinner"></div>
-    <span id="loading-msg" style="color:#3d5f7e; font-size:13px; font-family:'Noto Sans KR',sans-serif;">
-      앱 로딩 중...
-    </span>
-  </div>
-
-  <!-- ── 앱 컨테이너: 항상 표시, pw-gate가 오버레이로 덮음 ── -->
+  <!-- ── 앱 컨테이너 ── -->
   <div id="root"></div>
 
   <script>
     const PW_HASH    = "7964106471ddb947a30a14c1f9a74a3fed4a7d6029f0047291138292c23a4c99";
     const SESSION_KEY = "cst_auth_v1";
+
+    // 인증된 경우 pw-gate 즉시 숨김
+    if (sessionStorage.getItem(SESSION_KEY) === "1") {
+      document.getElementById("pw-gate").style.display = "none";
+    } else {
+      window.addEventListener("load", () => {
+        const el = document.getElementById("pw-input");
+        if (el) el.focus();
+      });
+    }
 
     async function sha256(str) {
       const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
@@ -208,7 +196,6 @@
       if (hash === PW_HASH) {
         sessionStorage.setItem(SESSION_KEY, "1");
         document.getElementById("pw-gate").style.display = "none";
-        // db-loading은 React 내부 dbReady state가 관리
       } else {
         errEl.textContent = "비밀번호가 올바르지 않습니다.";
         boxEl.classList.remove("shake");
@@ -218,33 +205,10 @@
         document.getElementById("pw-input").focus();
       }
     }
-
-    (function() {
-      // 인증 여부와 무관하게 db-loading은 React가 로드되면 자동으로 숨겨짐
-      if (!(sessionStorage.getItem(SESSION_KEY) === "1")) {
-        // 미인증: pw-gate 표시 (이미 기본 display:flex)
-        window.addEventListener("load", () => {
-          const el = document.getElementById("pw-input");
-          if(el) el.focus();
-        });
-      }
-      // db-loading은 __appReady 감지 후 숨기기 (앱이 실제 렌더링될 때)
-      const t = setInterval(() => {
-        if (window.__appReady) {
-          clearInterval(t);
-          document.getElementById("db-loading").style.display = "none";
-        }
-      }, 100);
-      // 최대 30초 후 강제 숨김
-      setTimeout(() => {
-        clearInterval(t);
-        document.getElementById("db-loading").style.display = "none";
-      }, 30000);
-    })();
   </script>
 
-  <!-- ── 앱 로직 (기능·실적 로직 수정 시 이 파일만 교체) ── -->
-  <script type="text/babel" src="app.js?v=3.1"></script>
+  <!-- ── 앱 로직 ── -->
+  <script type="text/babel" src="app.js?v=3.2"></script>
 
   <!-- ── Service Worker 등록 ── -->
   <script>

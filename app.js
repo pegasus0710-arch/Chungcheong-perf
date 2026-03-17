@@ -3497,7 +3497,3 @@ function App(){
 
 const root=ReactDOM.createRoot(document.getElementById("root"));
 root.render(<App/>);
-
-// ── Babel 트랜스파일 + ReactDOM 초기화 완료 신호
-// useEffect보다 먼저 실행됨 — index.html 폴링이 즉시 감지
-window.__appReady = true;
