@@ -75,11 +75,35 @@
     (function(){
       try{
         const t = localStorage.getItem('cst_theme_v1') || 'light';
-        if(t === 'light')
+        if(t === 'light'){
           document.documentElement.classList.add('theme-light');
+          document.body && (document.body.style.background = '#e8edf4');
+        } else {
+          document.body && (document.body.style.background = '#07101f');
+        }
       }catch(e){}
     })();
   </script>
+  <style>
+    /* Babel 로드 중 정적 로딩 화면 */
+    #static-loading {
+      position: fixed; inset: 0; z-index: 100;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 14px;
+      background: inherit;
+    }
+    #static-loading .sl-spinner {
+      width: 32px; height: 32px; border-radius: 50%;
+      border: 3px solid rgba(124,131,245,.2);
+      border-top-color: #7c83f5;
+      animation: sl-spin .8s linear infinite;
+    }
+    #static-loading .sl-text {
+      font-size: 13px; font-family: 'Segoe UI', sans-serif;
+      color: #7c83f5; font-weight: 600;
+    }
+    @keyframes sl-spin { to { transform: rotate(360deg); } }
+  </style>
 </head>
 <body>
 
@@ -96,7 +120,13 @@
 </div>
 
 <!-- ── 앱 컨테이너 ── -->
-<div id="root"></div>
+<div id="root">
+  <!-- Babel/React 로드 완료 전 정적 로딩 화면 -->
+  <div id="static-loading">
+    <div class="sl-spinner"></div>
+    <span class="sl-text">앱 로딩 중...</span>
+  </div>
+</div>
 
 <script>
   const PW_HASH  = "7964106471ddb947a30a14c1f9a74a3fed4a7d6029f0047291138292c23a4c99";
