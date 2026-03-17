@@ -3285,43 +3285,61 @@ function App(){
     <div key={themeKey} style={{minHeight:"100vh",background:C.bg,color:C.text,
       fontFamily:"'Noto Sans KR','Apple SD Gothic Neo',sans-serif"}}>
 
-      {/* 판매/매출 선택 + 헤더 — 상단 고정 */}
-      <div style={{position:"sticky",top:0,zIndex:300,background:C.bg}}>
-      {/* 판매/매출 선택 */}
-      <div style={{background:C.surf,borderBottom:`1px solid ${C.b1}`,padding:"0 16px"}}>
+      {/* ── 상단 헤더 (sticky) — plan.js와 동일 구조 */}
+      <div style={{position:"sticky",top:0,zIndex:300,background:C.surf,
+        borderBottom:`1px solid ${C.b1}`}}>
+
+        {/* ─ 행1: 로고 + 탭 + 우측 컨트롤 ─ */}
         <div style={{maxWidth:1360,margin:"0 auto",display:"flex",alignItems:"center",
-          height:38,gap:8,flexWrap:"wrap"}}>
-          {!isMobile&&<span style={{color:C.muted,fontSize:10,fontWeight:700}}>구분</span>}
-          {MODES.map(m=>(
-            <button key={m} onClick={()=>setMode(m)} style={{
-              padding:"4px 16px",borderRadius:6,cursor:"pointer",fontFamily:"inherit",
-              fontWeight:800,fontSize:12,border:`1px solid ${mode===m?C[m]:C.b1}`,
-              background:mode===m?C[m]+"22":"transparent",color:mode===m?C[m]:C.muted,
-              boxShadow:mode===m?`0 0 8px ${C[m]}40`:"none",transition:"all .15s"}}>
-              {m==="매출"?"💰 매출":"📦 판매"}
-            </button>
-          ))}
-          <div style={{marginLeft:"auto",display:"flex",gap:8,alignItems:"center"}}>
-            {/* 테마 토글 */}
-            <button onClick={toggleTheme} title={theme==='dark'?"라이트 모드로 전환":"다크 모드로 전환"} style={{
-              padding:"4px 10px",borderRadius:6,cursor:"pointer",fontFamily:"inherit",
-              fontWeight:700,fontSize:12,border:`1px solid ${C.b1}`,
-              background:theme==='light'?"rgba(255,200,50,.12)":"rgba(100,120,200,.15)",
-              color:theme==='light'?C.orange:C.accent,transition:"all .15s",lineHeight:1.4,
-              display:"flex",alignItems:"center",gap:5}}
-              onMouseEnter={e=>{e.currentTarget.style.borderColor=C.accent;e.currentTarget.style.opacity=".8";}}
-              onMouseLeave={e=>{e.currentTarget.style.borderColor=C.b1;e.currentTarget.style.opacity="1";}}>
-              {theme==='light'?'☀️':'🌙'}
-              {!isMobile&&<span style={{fontSize:10}}>{theme==='light'?'라이트':'다크'}</span>}
-            </button>
-            <span style={{color:C.muted,fontSize:9}}>{APP_VER}</span>
+          gap:2,padding:"6px 16px"}}>
+          {/* 로고 */}
+          <a href="index.html" style={{display:"flex",alignItems:"center",gap:8,
+            textDecoration:"none",color:C.text,marginRight:8,flexShrink:0}}>
+            <div style={{width:28,height:28,borderRadius:8,
+              background:`linear-gradient(135deg,${mColor},${C.accent})`,
+              display:"flex",alignItems:"center",justifyContent:"center",
+              fontWeight:900,fontSize:14,color:"#fff"}}>C</div>
+            {!isMobile&&(
+              <div>
+                <div style={{fontWeight:900,fontSize:12,color:C.text}}>관리시스템</div>
+                <div style={{color:mColor,fontSize:9,fontWeight:700}}>관리시스템 · {mode}</div>
+              </div>
+            )}
+          </a>
+          {/* 탭 네비게이션 */}
+          <nav style={{display:"flex",gap:2}}>
+            {TABS.map(t=>(
+              <button key={t.k} onClick={()=>setTab(t.k)} style={{
+                padding:isMobile?"5px 8px":"5px 12px",borderRadius:7,border:"none",
+                cursor:"pointer",background:tab===t.k?mColor+"22":"transparent",
+                color:tab===t.k?mColor:C.muted,fontWeight:tab===t.k?800:500,
+                fontSize:isMobile?10:12,fontFamily:"inherit",whiteSpace:"nowrap",
+                borderBottom:tab===t.k?`2px solid ${mColor}`:"2px solid transparent",
+                transition:"color .15s"}}>
+                {isMobile?t.l:`${t.i} ${t.l}`}
+              </button>
+            ))}
+            <a href="plan.html" style={{
+              padding:isMobile?"5px 8px":"5px 12px",borderRadius:7,border:"none",
+              cursor:"pointer",background:"transparent",color:C.muted,
+              fontWeight:500,fontSize:isMobile?10:12,fontFamily:"inherit",
+              textDecoration:"none",display:"flex",alignItems:"center",gap:4,
+              borderBottom:"2px solid transparent",whiteSpace:"nowrap",transition:"color .15s",
+            }}
+            onMouseEnter={e=>{e.currentTarget.style.color=C.accent;}}
+            onMouseLeave={e=>{e.currentTarget.style.color=C.muted;}}>
+              {isMobile?"달성":"📋 달성계획"}
+            </a>
+          </nav>
+          {/* 우측: dbStatus + 테마 + 버전 + 미저장 */}
+          <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8}}>
+            {/* DB 연결 상태 */}
             <span style={{fontSize:10,fontWeight:600,
               color:dbStatus.startsWith("✅")?C.green
                    :dbStatus.startsWith("❌")||dbStatus.includes("실패")?C.red
-                   :dbStatus.startsWith("🔄")?C.accent
-                   :C.orange,
-              cursor:(dbStatus.includes("재시도↻"))?"pointer":"default",
-              textDecoration:(dbStatus.includes("재시도↻"))?"underline":"none",
+                   :dbStatus.startsWith("🔄")?C.accent:C.orange,
+              cursor:dbStatus.includes("재시도↻")?"pointer":"default",
+              textDecoration:dbStatus.includes("재시도↻")?"underline":"none",
             }}
             onClick={()=>{
               if(dbStatus.includes("재시도↻")){
@@ -3360,97 +3378,79 @@ function App(){
             }}>
               {dbStatus}
             </span>
-            {hasUnsaved&&saveState==="idle"&&
-              <span style={{color:C.orange,fontSize:10,fontWeight:600}}>● 미저장</span>}
-            {saveState==="saved"&&
-              <span style={{color:C.green,fontSize:10,fontWeight:600}}>✓ 저장됨</span>}
+            {/* 테마 토글 */}
+            <button onClick={toggleTheme} style={{
+              padding:"4px 10px",borderRadius:6,cursor:"pointer",fontFamily:"inherit",
+              fontWeight:700,fontSize:12,border:`1px solid ${C.b1}`,
+              background:theme==='light'?"rgba(255,200,50,.12)":"rgba(100,120,200,.15)",
+              color:theme==='light'?C.orange:C.accent,transition:"all .15s",
+              display:"flex",alignItems:"center",gap:5}}
+              onMouseEnter={e=>{e.currentTarget.style.borderColor=C.accent;e.currentTarget.style.opacity=".8";}}
+              onMouseLeave={e=>{e.currentTarget.style.borderColor=C.b1;e.currentTarget.style.opacity="1";}}>
+              {theme==='light'?'☀️':'🌙'}
+              {!isMobile&&<span style={{fontSize:10}}>{theme==='light'?'라이트':'다크'}</span>}
+            </button>
+            <span style={{color:C.muted,fontSize:9}}>{APP_VER}</span>
+            {/* 줌 */}
+            <div style={{display:"flex",alignItems:"center",gap:3,background:C.card2,
+              borderRadius:7,padding:"3px 6px",border:`1px solid ${C.b1}`}}>
+              <span style={{fontSize:12,color:C.muted2,flexShrink:0}}>🔍</span>
+              <button onClick={()=>setGlobalZoom(z=>Math.max(50,z-10))} style={{
+                padding:"2px 6px",borderRadius:4,border:`1px solid ${C.b1}`,
+                background:C.card2,color:C.muted2,cursor:"pointer",
+                fontSize:11,fontFamily:"inherit",fontWeight:700,lineHeight:1}}>−</button>
+              <select value={globalZoom} onChange={e=>setGlobalZoom(parseInt(e.target.value))}
+                style={{background:"transparent",border:"none",color:C.text,fontSize:11,
+                  fontWeight:700,cursor:"pointer",outline:"none",
+                  fontFamily:"inherit",minWidth:46}}>
+                {[50,60,70,80,90,100,110,120,130,140,150,160,170,180,190,200].map(v=>(
+                  <option key={v} value={v} style={{background:C.card,color:C.text}}>{v}%</option>
+                ))}
+              </select>
+              <button onClick={()=>setGlobalZoom(z=>Math.min(200,z+10))} style={{
+                padding:"2px 6px",borderRadius:4,border:`1px solid ${C.b1}`,
+                background:C.card2,color:C.muted2,cursor:"pointer",
+                fontSize:11,fontFamily:"inherit",fontWeight:700,lineHeight:1}}>+</button>
+            </div>
+            {/* 다운로드 */}
+            <button onClick={()=>setShowBackupMain(true)} style={{
+              padding:"4px 12px",borderRadius:7,border:`1px solid ${C.teal}40`,
+              background:C.teal+"10",color:C.teal,fontWeight:700,fontSize:11,
+              cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",gap:5,
+              transition:"all .15s"}}
+              onMouseEnter={e=>{e.currentTarget.style.background=C.teal+"22";e.currentTarget.style.borderColor=C.teal;}}
+              onMouseLeave={e=>{e.currentTarget.style.background=C.teal+"10";e.currentTarget.style.borderColor=C.teal+"40";}}>
+              {isMobile?"⬇":"📦 다운로드"}
+            </button>
           </div>
         </div>
-      </div>
 
-      {/* 헤더 */}
-      <div style={{background:C.surf,borderBottom:`1px solid ${C.b1}`,padding:"0 16px"}}>
-        <div style={{maxWidth:1360,margin:"0 auto",display:"flex",alignItems:"center",
-          height:isMobile?40:46,gap:isMobile?4:20}}>
-          <div style={{display:"flex",alignItems:"center",gap:7,flexShrink:0}}>
-            <div style={{width:24,height:24,background:`linear-gradient(135deg,${mColor},${C.accent})`,
-              borderRadius:6,display:"flex",alignItems:"center",justifyContent:"center",
-              fontSize:12,fontWeight:900,color:"#fff",boxShadow:`0 0 8px ${mColor}50`}}>C</div>
-            {!isMobile&&(
-              <div>
-                <div style={{color:C.text,fontWeight:900,fontSize:12}}>관리시스템</div>
-                <div style={{color:mColor,fontSize:9,fontWeight:700}}>관리시스템 · {mode}</div>
-              </div>
-            )}
-          </div>
-          <nav style={{display:"flex",gap:2}}>
-            {TABS.map(t=>(
-              <button key={t.k} onClick={()=>setTab(t.k)} style={{
-                padding:isMobile?"5px 8px":"6px 14px",borderRadius:7,border:"none",cursor:"pointer",
-                background:tab===t.k?mColor+"22":"transparent",color:tab===t.k?mColor:C.muted,
-                fontWeight:tab===t.k?800:500,
-                fontSize:isMobile?10:12,fontFamily:"inherit",whiteSpace:"nowrap",
-                borderBottom:tab===t.k?`2px solid ${mColor}`:"2px solid transparent"}}>
-                {isMobile
-                  ? {dashboard:"대시보드",analysis:"실적분석",input:"실적입력"}[t.k]
-                  : `${t.i} ${t.l}`}
+        {/* ─ 행2: 판매/매출 + 미저장 상태 ─ */}
+        <div style={{background:C.surf,borderTop:`1px solid ${C.b1}22`,padding:"0 16px"}}>
+          <div style={{maxWidth:1360,margin:"0 auto",display:"flex",alignItems:"center",
+            height:38,gap:8,flexWrap:"wrap"}}>
+            {/* 판매/매출 선택 */}
+            {!isMobile&&<span style={{color:C.muted,fontSize:10,fontWeight:700}}>구분</span>}
+            {MODES.map(m=>(
+              <button key={m} onClick={()=>setMode(m)} style={{
+                padding:"3px 14px",borderRadius:6,cursor:"pointer",fontFamily:"inherit",
+                fontWeight:800,fontSize:12,border:`1px solid ${mode===m?C[m]:C.b1}`,
+                background:mode===m?C[m]+"22":"transparent",color:mode===m?C[m]:C.muted,
+                boxShadow:mode===m?`0 0 8px ${C[m]}40`:"none",transition:"all .15s"}}>
+                {m==="매출"?"💰 매출":"📦 판매"}
               </button>
             ))}
-          </nav>
-          {/* 달성계획 탭 (탭 메뉴 바로 옆) */}
-          <a href="plan.html" style={{
-            padding:isMobile?"6px 10px":"6px 14px",borderRadius:7,
-            border:"none",cursor:"pointer",
-            background:"transparent",color:C.muted,
-            fontWeight:500,fontSize:isMobile?11:12,fontFamily:"inherit",
-            textDecoration:"none",display:"flex",alignItems:"center",gap:4,
-            borderBottom:"2px solid transparent",whiteSpace:"nowrap",
-            transition:"color .15s, border-color .15s",
-          }}
-          onMouseEnter={e=>{e.currentTarget.style.color="#7c83f5";e.currentTarget.style.borderBottomColor="#7c83f540";}}
-          onMouseLeave={e=>{e.currentTarget.style.color=C.muted;e.currentTarget.style.borderBottomColor="transparent";}}>
-            {isMobile?"달성":"📋 달성계획"}
-          </a>
-          <div style={{width:1,height:20,background:C.b1,margin:"0 4px",flexShrink:0}}/>
-
-          {/* 백업 버튼 */}
-          <button onClick={()=>setShowBackupMain(true)} style={{
-            padding:"5px 12px",borderRadius:7,border:`1px solid ${C.teal}40`,
-            background:C.teal+"10",color:C.teal,fontWeight:700,fontSize:11,
-            cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",gap:5,
-            transition:"all .15s",
-          }}
-          onMouseEnter={e=>{e.currentTarget.style.background=C.teal+"22";e.currentTarget.style.borderColor=C.teal;}}
-          onMouseLeave={e=>{e.currentTarget.style.background=C.teal+"10";e.currentTarget.style.borderColor=C.teal+"40";}}>
-            {isMobile?"⬇":"📦 다운로드"}
-          </button>
-          {/* 화면 확대/축소 */}
-          <div style={{display:"flex",alignItems:"center",gap:3,background:C.card2,
-            borderRadius:7,padding:"3px 6px",border:`1px solid ${C.b1}`}}>
-            <span style={{fontSize:12,color:C.muted2,flexShrink:0}}>🔍</span>
-            <button onClick={()=>setGlobalZoom(z=>Math.max(50,z-10))} style={{
-              padding:"2px 6px",borderRadius:4,border:`1px solid ${C.b1}`,
-              background:C.card2,color:C.muted2,
-              cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:700,lineHeight:1}}>−</button>
-            <select value={globalZoom} onChange={e=>setGlobalZoom(parseInt(e.target.value))}
-              style={{background:"transparent",border:"none",color:C.text,fontSize:11,
-                fontWeight:700,cursor:"pointer",outline:"none",textAlign:"center",
-                fontFamily:"inherit",minWidth:46}}>
-              {[50,60,70,80,90,100,110,120,130,140,150,160,170,180,190,200].map(v=>(
-                <option key={v} value={v} style={{background:C.card,color:C.text}}>{v}%</option>
-              ))}
-            </select>
-            <button onClick={()=>setGlobalZoom(z=>Math.min(200,z+10))} style={{
-              padding:"2px 6px",borderRadius:4,border:`1px solid ${C.b1}`,
-              background:C.card2,color:C.muted2,
-              cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:700,lineHeight:1}}>+</button>
+            {/* 우측: 미저장/저장됨 상태 */}
+            <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:6}}>
+              {hasUnsaved&&saveState==="idle"&&
+                <span style={{color:C.orange,fontSize:10,fontWeight:600}}>● 미저장</span>}
+              {saveState==="saved"&&
+                <span style={{color:C.green,fontSize:10,fontWeight:600}}>✓ 저장됨</span>}
+            </div>
           </div>
-
-
         </div>
       </div>
       {/* ── sticky 헤더 끝 ── */}
-      </div>
 
       {/* 콘텐츠 */}
       <div id="report-content" style={{maxWidth:1360,margin:"0 auto",padding:isMobile?"12px":"20px 16px",paddingBottom:60}}>
