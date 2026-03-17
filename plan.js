@@ -510,12 +510,23 @@ function RichEditor({value,onChange,placeholder,minHeight=220,readOnly=false,fon
   };
   if(readOnly){
     return(
-      <div style={{
-        padding:"12px 16px",borderRadius:8,border:`1px solid ${C.b1}`,
-        minHeight,color:C.text,fontSize:14,lineHeight:1.8,
-        wordBreak:"break-word",background:"rgba(255,255,255,.02)",opacity:.9,...style}}
-        dangerouslySetInnerHTML={{__html:toHTMLStatic(value)}}
-      />
+      <>
+        <div className="rich-view" style={{
+          padding:"12px 16px",borderRadius:8,border:`1px solid ${C.b1}`,
+          minHeight,color:C.text,fontSize:14,lineHeight:1.8,
+          wordBreak:"break-word",background:"rgba(255,255,255,.02)",opacity:.9,...style}}
+          dangerouslySetInnerHTML={{__html:toHTMLStatic(value)}}
+        />
+        <style>{`
+          .rich-view ul, .rich-view ol { padding-left:1.6em; margin:4px 0; }
+          .rich-view ul li, .rich-view ol li { margin-bottom:3px; padding-left:2px; color:${C.text}; }
+          .rich-view p, .rich-view div, .rich-view span:not([style]) { color:${C.text}; }
+          .rich-view h2, .rich-view h3, .rich-view h4 { color:${C.text}; }
+          .rich-view table { border-collapse:collapse; width:100%; margin:8px 0; }
+          .rich-view td, .rich-view th { border:1px solid ${C.b2}; padding:6px 10px; font-size:13px; color:${C.text}; }
+          .rich-view th { background:${C.accent}18; font-weight:700; }
+        `}</style>
+      </>
     );
   }
 
