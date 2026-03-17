@@ -182,8 +182,8 @@
   <!-- ── Firebase 데이터 로딩 중 스피너 ── -->
   <div id="db-loading">
     <div class="spinner"></div>
-    <span style="color:#3d5f7e; font-size:13px; font-family:'Noto Sans KR',sans-serif;">
-      데이터 불러오는 중...
+    <span id="loading-msg" style="color:#3d5f7e; font-size:13px; font-family:'Noto Sans KR',sans-serif;">
+      불러오는 중...
     </span>
   </div>
 
@@ -213,9 +213,21 @@
         sessionStorage.setItem(SESSION_KEY, "1");
         document.getElementById("pw-gate").style.display    = "none";
         document.getElementById("db-loading").style.display = "flex";
-        // 앱 스크립트 로드 완료 대기 후 표시
+        let waited = 0;
+        const msgs = [
+          [0,    "앱 초기화 중..."],
+          [3000, "라이브러리 로드 중..."],
+          [8000, "데이터 연결 중..."],
+          [14000,"연결이 느립니다. 잠시만요..."],
+        ];
+        const msgEl = document.getElementById("loading-msg");
         const waitReact = setInterval(() => {
-          if (window.__appReady) {
+          waited += 100;
+          // 단계별 메시지 업데이트
+          for (let i = msgs.length - 1; i >= 0; i--) {
+            if (waited >= msgs[i][0]) { msgEl.textContent = msgs[i][1]; break; }
+          }
+          if (window.__appReady || waited >= 20000) {
             clearInterval(waitReact);
             document.getElementById("db-loading").style.display = "none";
             document.getElementById("root").style.display = "block";
@@ -235,8 +247,20 @@
       if (sessionStorage.getItem(SESSION_KEY) === "1") {
         document.getElementById("pw-gate").style.display    = "none";
         document.getElementById("db-loading").style.display = "flex";
+        let waited = 0;
+        const msgs = [
+          [0,    "앱 초기화 중..."],
+          [3000, "라이브러리 로드 중..."],
+          [8000, "데이터 연결 중..."],
+          [14000,"연결이 느립니다. 잠시만요..."],
+        ];
+        const msgEl = document.getElementById("loading-msg");
         const waitReact = setInterval(() => {
-          if (window.__appReady) {
+          waited += 100;
+          for (let i = msgs.length - 1; i >= 0; i--) {
+            if (waited >= msgs[i][0]) { msgEl.textContent = msgs[i][1]; break; }
+          }
+          if (window.__appReady || waited >= 20000) {
             clearInterval(waitReact);
             document.getElementById("db-loading").style.display = "none";
             document.getElementById("root").style.display = "block";

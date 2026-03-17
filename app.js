@@ -3195,31 +3195,65 @@ function App(){
   const DOC = () => window.db.collection("perf").doc("main");
 
   useEffect(()=>{
+    let cancelled = false;
     (async()=>{
+      // 1단계: localStorage 캐시 즉시 표시 (화면 빠르게 뜨게)
       try{
-        const snap = await DOC().get();
-        if(snap.exists){
-          const raw = snap.data().perfData;
-          const loaded = migrate(raw);
-          // 로딩 확인: 24년 매출 1월 CE 체크
-          const ce24 = loaded?.["24"]?.["매출"]?.perf?.["0"]?.CE;
-          setDbStatus(gNum(ce24)>0?`✅ 로드완료`:`✅ 연결됨`);
-          setData(loaded);
-          localStorage.setItem("cst_v13",JSON.stringify(loaded));
-        } else {
-          setDbStatus("⚠ 문서없음");
+        const loc = localStorage.getItem("cst_v13");
+        if(loc){
+          const cached = migrate(JSON.parse(loc));
+          if(!cancelled){
+            setData(cached);
+            setDbStatus("💾 캐시로드");
+            // 캐시 있으면 즉시 화면 표시 - Firebase 완료 안 기다림
+            setDbReady(true);
+            window.__appReady = true;
+          }
         }
-      }catch(e){
-        setDbStatus("❌ "+e.message.slice(0,25));
+      }catch{}
+
+      // 2단계: Firebase 실제 데이터 로드 (최대 12초 타임아웃)
+      const timeoutMs = 12000;
+      const fetchWithTimeout = (promise, ms) =>
+        Promise.race([promise, new Promise((_,r)=>setTimeout(()=>r(new Error("timeout")), ms))]);
+
+      let retries = 2;
+      while(retries >= 0){
         try{
-          const loc=localStorage.getItem("cst_v13")||localStorage.getItem("cst_v10")||localStorage.getItem("perf_data_v3");
-          if(loc) setData(migrate(JSON.parse(loc)));
-        }catch{}
-      } finally{
-        setDbReady(true);     // ← Firebase 완료 신호 (성공/실패 무관)
-        window.__appReady=true;
+          const snap = await fetchWithTimeout(DOC().get(), timeoutMs);
+          if(cancelled) return;
+          if(snap.exists){
+            const raw  = snap.data().perfData;
+            const loaded = migrate(raw);
+            const ce24 = loaded?.["24"]?.["매출"]?.perf?.["0"]?.CE;
+            setDbStatus(gNum(ce24)>0 ? "✅ 로드완료" : "✅ 연결됨");
+            setData(loaded);
+            localStorage.setItem("cst_v13", JSON.stringify(loaded));
+          } else {
+            setDbStatus("⚠ 문서없음");
+          }
+          break; // 성공 시 루프 종료
+        }catch(e){
+          retries--;
+          if(retries < 0){
+            if(!cancelled){
+              const isTimeout = e.message === "timeout";
+              setDbStatus(isTimeout ? "⚠ 연결지연" : "❌ "+e.message.slice(0,20));
+            }
+          } else {
+            // 재시도 전 1.5초 대기
+            await new Promise(r=>setTimeout(r, 1500));
+          }
+        }
+      }
+
+      // 캐시 없었던 경우 여기서 최종 신호
+      if(!cancelled){
+        setDbReady(true);
+        window.__appReady = true;
       }
     })();
+    return () => { cancelled = true; };
   },[]);
 
   const handleSetData=useCallback(upd=>{
@@ -3426,7 +3460,7 @@ function App(){
               onRequestTargetUnlock={()=>setShowTgtPwModal(true)}
               onTargetLock={()=>{sessionStorage.removeItem(TGT_UNLOCK_KEY);setIsTargetUnlocked(false);}}
               theme={theme}
-              />}}
+              />
             </>
           )}
         </ErrorBoundary>
