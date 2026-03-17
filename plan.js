@@ -876,14 +876,16 @@ function PlanApp(){
 
   // Firebase 로드
   useEffect(()=>{
-    // 캐시 즉시 로드
+    // 캐시 즉시 로드 (Firebase 실패해도 화면에 표시)
     try{
       const loc = localStorage.getItem(LS_PERF_CACHE);
-      if(loc){
-        const cached = JSON.parse(loc);
-        if(cached) setPerfData(cached);
-      }
-      // textDraft는 Firebase 로드 전에만 복원 (Firebase 로드 후 충돌 방지를 위해 플래그 사용)
+      if(loc){ const cached=JSON.parse(loc); if(cached) setPerfData(cached); }
+
+      // planTextData 캐시 복원 (Firebase 실패 대비)
+      const cachedPlan = localStorage.getItem("cst_plan_text_cache_v1");
+      if(cachedPlan){ const p=JSON.parse(cachedPlan); if(p) setPlanTextData(p); }
+
+      // textDraft 복원 (미저장 변경사항)
       const savedText = localStorage.getItem(LS_TEXT);
       if(savedText) setTextDraft(JSON.parse(savedText));
     }catch{}
@@ -895,6 +897,7 @@ function PlanApp(){
     const loadFirebase = async () => {
       while(retries >= 0){
         try{
+          setDbStatus(retries < 2 ? `🔄 재시도 중... (${2-retries}/2)` : "🔄 연결중...");
           const snap = await Promise.race([
             window.db.collection("perf").doc("main").get(),
             new Promise((_,r)=>setTimeout(()=>r(new Error("timeout")), 12000))
@@ -907,21 +910,17 @@ function PlanApp(){
             }
             if(d.planTextData){
               setPlanTextData(d.planTextData);
-              // Firebase에서 최신 데이터 로드 완료 → localStorage 임시저장 제거
-              // (저장 완료된 데이터이므로 textDraft 불필요)
+              // planTextData도 캐시 저장 (다음 접속 시 Firebase 실패해도 표시 가능)
+              localStorage.setItem("cst_plan_text_cache_v1", JSON.stringify(d.planTextData));
+              // textDraft와 동일하면 제거
               const savedText = localStorage.getItem(LS_TEXT);
               if(savedText){
                 try{
-                  const draft = JSON.parse(savedText);
-                  // draft의 내용이 Firebase 데이터와 동일하면 제거
-                  // (미저장 변경사항이 없으면 textDraft 클리어)
-                  const draftStr = JSON.stringify(draft);
-                  const fbStr = JSON.stringify(d.planTextData);
-                  if(draftStr===fbStr){
+                  const draft=JSON.parse(savedText);
+                  if(JSON.stringify(draft)===JSON.stringify(d.planTextData)){
                     localStorage.removeItem(LS_TEXT);
                     setTextDraft({});
                   }
-                  // 다르면 유지 (사용자가 저장 안 한 변경사항 있음)
                 }catch{}
               }
             }
@@ -933,15 +932,14 @@ function PlanApp(){
         }catch(e){
           retries--;
           if(retries < 0){
-            setDbStatus(e.message==="timeout"?"⚠ 연결지연":"❌ "+e.message.slice(0,20));
-            console.error("Firebase 로드 오류:", e.message);
+            setDbStatus(e.message==="timeout" ? "⚠ 연결지연 — 재시도↻" : "❌ 로드실패 — 재시도↻");
           } else {
-            await new Promise(r=>setTimeout(r, 1500));
+            setDbStatus(`⚠ 오류 (${2-retries}회) — 재시도 중...`);
+            await new Promise(r=>setTimeout(r, 2000));
           }
         }
       }
     };
-    setDbStatus("🔄 연결중...");
     loadFirebase();
   },[]);
 
@@ -1229,9 +1227,53 @@ function PlanApp(){
             <span style={{
               fontSize:10,fontWeight:600,
               color:dbStatus.startsWith("✅")?C.green
-                   :dbStatus.startsWith("❌")?C.red
-                   :dbStatus.startsWith("⚠")?C.orange
-                   :C.muted}}>
+                   :dbStatus.startsWith("❌")||dbStatus.includes("실패")?C.red
+                   :dbStatus.startsWith("🔄")?C.accent
+                   :C.orange,
+              cursor:dbStatus.includes("재시도↻")?"pointer":"default",
+              textDecoration:dbStatus.includes("재시도↻")?"underline":"none",
+            }}
+            onClick={()=>{
+              if(!dbStatus.includes("재시도↻")) return;
+              let retries=2;
+              const retry=async()=>{
+                while(retries>=0){
+                  try{
+                    setDbStatus(retries<2?`🔄 재시도 중... (${2-retries}/2)`:"🔄 연결중...");
+                    const snap=await Promise.race([
+                      window.db.collection("perf").doc("main").get(),
+                      new Promise((_,r)=>setTimeout(()=>r(new Error("timeout")),12000))
+                    ]);
+                    if(snap.exists){
+                      const d=snap.data();
+                      if(d.perfData){ setPerfData(d.perfData); localStorage.setItem(LS_PERF_CACHE,JSON.stringify(d.perfData)); }
+                      if(d.planTextData){
+                        setPlanTextData(d.planTextData);
+                        localStorage.setItem("cst_plan_text_cache_v1",JSON.stringify(d.planTextData));
+                        const savedText=localStorage.getItem(LS_TEXT);
+                        if(savedText){
+                          try{
+                            const draft=JSON.parse(savedText);
+                            if(JSON.stringify(draft)===JSON.stringify(d.planTextData)){ localStorage.removeItem(LS_TEXT); setTextDraft({}); }
+                          }catch{}
+                        }
+                      }
+                      setDbStatus("✅ 로드완료");
+                    } else { setDbStatus("⚠ 문서없음"); }
+                    return;
+                  }catch(e){
+                    retries--;
+                    if(retries<0){
+                      setDbStatus(e.message==="timeout"?"⚠ 연결지연 — 재시도↻":"❌ 로드실패 — 재시도↻");
+                    } else {
+                      setDbStatus(`⚠ 오류 (${2-retries}회) — 재시도 중...`);
+                      await new Promise(r=>setTimeout(r,2000));
+                    }
+                  }
+                }
+              };
+              retry();
+            }}>
               {dbStatus}
             </span>
             {/* 테마 토글 */}
