@@ -1336,6 +1336,7 @@ function PlanApp(){
       localStorage.removeItem(LS_TEXT);
       setSaveState("saved");
       setIsEditing(false); // 저장 후 잠금
+      setEditorKey(k=>k+1); // 저장 후 편집기 remount → Hook 순서 보장
       setTimeout(()=>setSaveState("idle"),2500);
     }catch(e){
       console.error("저장 오류:",e);
