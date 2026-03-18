@@ -5657,7 +5657,7 @@ function Analysis(_ref39) {
       color: C.muted,
       fontSize: 9
     }
-  }, "\uC804\uB144 ", ytdPrev > 0 ? Math.round(ytdPrev).toLocaleString() : "─", "\uC5B5")), /*#__PURE__*/React.createElement("div", {
+  })), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       alignItems: "baseline",
@@ -5756,7 +5756,7 @@ function Analysis(_ref39) {
       color: C.muted,
       fontSize: 9
     }
-  }, "\uC804\uB144 ", cePrevShareYtd ? cePrevShareYtd + "%" : "─")), /*#__PURE__*/React.createElement("div", {
+  })), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       alignItems: "baseline",

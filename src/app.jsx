@@ -2589,7 +2589,7 @@ function Analysis({data,mode,theme}){
           padding:"12px 16px",borderTop:`3px solid ${ytdGr?grwC(ytdGr):C.muted}`,display:"flex",flexDirection:"column",gap:4}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <span style={{color:ytdGr?grwC(ytdGr):C.muted,fontSize:11,fontWeight:800}}>● 전년비 성장</span>
-            <span style={{color:C.muted,fontSize:9}}>전년 {ytdPrev>0?Math.round(ytdPrev).toLocaleString():"─"}억</span>
+            <span style={{color:C.muted,fontSize:9}}></span>
           </div>
           <div style={{display:"flex",alignItems:"baseline",gap:4}}>
             <span style={{color:ytdGr?grwC(ytdGr):C.muted,fontSize:24,fontWeight:900}}>{ytdGr?grwT(ytdGr):"─"}</span>
@@ -2618,7 +2618,7 @@ function Analysis({data,mode,theme}){
           padding:"12px 16px",borderTop:`3px solid ${KC.CE}`,display:"flex",flexDirection:"column",gap:4}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <span style={{color:KC.CE,fontSize:11,fontWeight:800}}>● CE 비중</span>
-            <span style={{color:C.muted,fontSize:9}}>전년 {cePrevShareYtd?cePrevShareYtd+"%" :"─"}</span>
+            <span style={{color:C.muted,fontSize:9}}></span>
           </div>
           <div style={{display:"flex",alignItems:"baseline",gap:4}}>
             <span style={{color:KC.CE,fontSize:24,fontWeight:900}}>{ceShareYtd?ceShareYtd+"%":"─"}</span>
