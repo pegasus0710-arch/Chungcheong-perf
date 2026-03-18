@@ -4289,7 +4289,7 @@ function PlanApp() {
     key: "목표",
     data: mTgt,
     c: C.orange,
-    sum: annT,
+    sum: ytdT,
     bg: "rgba(245,185,66,.10)"
   }, {
     key: "실적",
@@ -4596,56 +4596,61 @@ function PlanApp() {
       width: 54,
       whiteSpace: "nowrap"
     }
-  }, "\uB204\uACC4"))), /*#__PURE__*/React.createElement("tbody", null, [{
-    key: "목표",
-    data: cumTgt,
-    c: C.orange,
-    sum: annT,
-    bg: "rgba(245,185,66,.10)"
-  }, {
-    key: "실적",
-    data: cumPerf,
-    c: color,
-    sum: ytdP,
-    bg: theme === "light" ? "rgba(0,0,0,.05)" : "rgba(0,0,0,.18)"
-  }, {
-    key: "달성률",
-    data: cumAr,
-    c: C.teal,
-    sum: ytdAr,
-    isPct: true,
-    bg: "rgba(45,212,136,.09)"
-  }, {
-    key: "성장률",
-    data: cumGr,
-    c: C.green,
-    sum: ytdGr,
-    isPct: true,
-    isGrw: true,
-    bg: theme === "light" ? "rgba(0,0,0,.05)" : "rgba(0,0,0,.18)"
-  }, {
-    key: "전년",
-    data: cumPrevFull12,
-    c: C.muted2,
-    sum: annPrev,
-    bg: theme === "light" ? "rgba(0,0,0,.02)" : "rgba(255,255,255,.05)"
-  }, {
-    key: "목표차질",
-    data: cumPerf,
-    c: null,
-    sum: ytdP - ytdT,
-    isDiff: true,
-    diffBase: cumTgt,
-    bg: theme === "light" ? "rgba(0,0,0,.05)" : "rgba(0,0,0,.18)"
-  }, {
-    key: "전년차질",
-    data: cumPerf,
-    c: null,
-    sum: ytdP - ytdPrev,
-    isDiff: true,
-    diffBase: cumPrevFull12,
-    bg: theme === "light" ? "rgba(0,0,0,.015)" : C.card2
-  }].map(function (_ref29, ri) {
+  }, "\uD569\uACC4"))), /*#__PURE__*/React.createElement("tbody", null, function () {
+    // 연간 합계 기준 지표
+    var annAr = annT > 0 ? (ytdP / annT * 100).toFixed(1) : null;
+    var annGr = annPrev > 0 ? ((ytdP - annPrev) / annPrev * 100).toFixed(1) : null;
+    return [{
+      key: "목표",
+      data: cumTgt,
+      c: C.orange,
+      sum: annT,
+      bg: "rgba(245,185,66,.10)"
+    }, {
+      key: "실적",
+      data: cumPerf,
+      c: color,
+      sum: ytdP,
+      bg: theme === "light" ? "rgba(0,0,0,.05)" : "rgba(0,0,0,.18)"
+    }, {
+      key: "달성률",
+      data: cumAr,
+      c: C.teal,
+      sum: annAr,
+      isPct: true,
+      bg: "rgba(45,212,136,.09)"
+    }, {
+      key: "성장률",
+      data: cumGr,
+      c: C.green,
+      sum: annGr,
+      isPct: true,
+      isGrw: true,
+      bg: theme === "light" ? "rgba(0,0,0,.05)" : "rgba(0,0,0,.18)"
+    }, {
+      key: "전년",
+      data: cumPrevFull12,
+      c: C.muted2,
+      sum: annPrev,
+      bg: theme === "light" ? "rgba(0,0,0,.02)" : "rgba(255,255,255,.05)"
+    }, {
+      key: "목표차질",
+      data: cumPerf,
+      c: null,
+      sum: ytdP - annT,
+      isDiff: true,
+      diffBase: cumTgt,
+      bg: theme === "light" ? "rgba(0,0,0,.05)" : "rgba(0,0,0,.18)"
+    }, {
+      key: "전년차질",
+      data: cumPerf,
+      c: null,
+      sum: ytdP - annPrev,
+      isDiff: true,
+      diffBase: cumPrevFull12,
+      bg: theme === "light" ? "rgba(0,0,0,.015)" : C.card2
+    }];
+  }().map(function (_ref29, ri) {
     var key = _ref29.key,
       data = _ref29.data,
       c = _ref29.c,
