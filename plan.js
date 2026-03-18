@@ -4172,11 +4172,10 @@ function PlanApp() {
     labels: MONTHS,
     h: 200,
     series: [{
-      data: mPrev.map(function (v, i) {
-        return i <= emi ? v : null;
-      }),
+      data: mPrev,
       color: "#a78bfa",
       op: .7,
+      dash: true,
       label: "전년"
     }, {
       data: mTgt.map(function (v) {
@@ -5077,11 +5076,18 @@ function PlanApp() {
         getPrev = _ref31.getPrev,
         daeTotal = _ref31.daeTotal,
         maxVal = _ref31.maxVal;
-      var totalTgt = rows.reduce(function (a, r) {
-        return a + getTgt(r);
+      var DAE_KEYS = ["혼수", "입주", "이사", "SAC", "거주중", "SMB", "농협", "휴대폰"];
+      var totalTgt = DAE_KEYS.reduce(function (a, k) {
+        var r = rows.find(function (x) {
+          return x.k === k;
+        });
+        return a + (r ? getTgt(r) : 0);
       }, 0);
-      var totalPrev = rows.reduce(function (a, r) {
-        return a + getPrev(r);
+      var totalPrev = DAE_KEYS.reduce(function (a, k) {
+        var r = rows.find(function (x) {
+          return x.k === k;
+        });
+        return a + (r ? getPrev(r) : 0);
       }, 0);
       var totalGr = totalPrev > 0 && totalTgt > 0 ? ((totalTgt - totalPrev) / totalPrev * 100).toFixed(1) : null;
       return /*#__PURE__*/React.createElement("div", {

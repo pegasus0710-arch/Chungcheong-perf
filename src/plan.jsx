@@ -2001,7 +2001,7 @@ function PlanApp(){
           {/* 차트 */}
           <div style={{marginBottom:10}}>
             {chartTab==="실적"&&<MiniChart labels={MONTHS} h={200} series={[
-              {data:mPrev.map((v,i)=>i<=emi?v:null),color:"#a78bfa",op:.7,label:"전년"},
+              {data:mPrev,color:"#a78bfa",op:.7,dash:true,label:"전년"},
               {data:mTgt.map(v=>v||null),color:C.orange,dash:true,op:.8,label:"목표"},
               {data:mPerf.map((v,i)=>i<=emi?v:null),color,bold:true,fill:true,showLabels:true,label:"실적"},
             ]}/>}
@@ -2341,8 +2341,9 @@ function PlanApp(){
             const maxOt=Math.max(...rows.filter(r=>r.k!=="휴대폰").map(r=>r.otTgt),1);
 
             const Panel=({mLabel,mColor,getTgt,getPrev,daeTotal,maxVal})=>{
-              const totalTgt =rows.reduce((a,r)=>a+getTgt(r),0);
-              const totalPrev=rows.reduce((a,r)=>a+getPrev(r),0);
+              const DAE_KEYS=["혼수","입주","이사","SAC","거주중","SMB","농협","휴대폰"];
+              const totalTgt =DAE_KEYS.reduce((a,k)=>{const r=rows.find(x=>x.k===k);return a+(r?getTgt(r):0);},0);
+              const totalPrev=DAE_KEYS.reduce((a,k)=>{const r=rows.find(x=>x.k===k);return a+(r?getPrev(r):0);},0);
               const totalGr  =totalPrev>0&&totalTgt>0?((totalTgt-totalPrev)/totalPrev*100).toFixed(1):null;
               return(
                 <div style={{flex:1,minWidth:0,background:C.card,borderRadius:12,
