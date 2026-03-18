@@ -2606,6 +2606,9 @@ function PlanApp() {
   var ytdPrev = mPrev.slice(0, Math.max(emi + 1, 0)).reduce(function (a, b) {
     return a + b;
   }, 0);
+  var annPrev = mPrev.reduce(function (a, b) {
+    return a + b;
+  }, 0); // 전년 연간합계 (12개월 전체)
   var annT = mTgt.reduce(function (a, b) {
     return a + b;
   }, 0);
@@ -4624,7 +4627,7 @@ function PlanApp() {
     key: "전년",
     data: cumPrevFull12,
     c: C.muted2,
-    sum: ytdPrev,
+    sum: annPrev,
     bg: theme === "light" ? "rgba(0,0,0,.02)" : "rgba(255,255,255,.05)"
   }, {
     key: "목표차질",

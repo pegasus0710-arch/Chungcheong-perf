@@ -1368,6 +1368,7 @@ function PlanApp(){
   const ytdP   =mPerf.slice(0,Math.max(emi+1,0)).reduce((a,b)=>a+b,0);
   const ytdT   =mTgt .slice(0,Math.max(emi+1,0)).reduce((a,b)=>a+b,0);
   const ytdPrev=mPrev.slice(0,Math.max(emi+1,0)).reduce((a,b)=>a+b,0);
+  const annPrev=mPrev.reduce((a,b)=>a+b,0); // 전년 연간합계 (12개월 전체)
   const annT   =mTgt.reduce((a,b)=>a+b,0);
   const remT   =Math.max(annT-ytdP,0);
   const remMonths=Math.max(11-emi,0);
@@ -2138,7 +2139,7 @@ function PlanApp(){
                   {key:"실적",    data:cumPerf,   c:color,    sum:ytdP,         bg:theme==="light"?"rgba(0,0,0,.05)":"rgba(0,0,0,.18)"},
                   {key:"달성률",  data:cumAr,     c:C.teal,   sum:ytdAr,   isPct:true,  bg:"rgba(45,212,136,.09)"},
                   {key:"성장률",  data:cumGr,     c:C.green,  sum:ytdGr,   isPct:true, isGrw:true, bg:theme==="light"?"rgba(0,0,0,.05)":"rgba(0,0,0,.18)"},
-                  {key:"전년",    data:cumPrevFull12,c:C.muted2, sum:ytdPrev,      bg:theme==="light"?"rgba(0,0,0,.02)":"rgba(255,255,255,.05)"},
+                  {key:"전년",    data:cumPrevFull12,c:C.muted2, sum:annPrev,      bg:theme==="light"?"rgba(0,0,0,.02)":"rgba(255,255,255,.05)"},
                   {key:"목표차질",data:cumPerf,   c:null,     sum:ytdP-ytdT, isDiff:true, diffBase:cumTgt, bg:theme==="light"?"rgba(0,0,0,.05)":"rgba(0,0,0,.18)"},
                   {key:"전년차질",data:cumPerf,   c:null,     sum:ytdP-ytdPrev, isDiff:true, diffBase:cumPrevFull12, bg:theme==="light"?"rgba(0,0,0,.015)":C.card2},
                 ].map(({key,data,c,sum,isPct,isGrw,isDiff,diffBase,bg},ri)=>(
