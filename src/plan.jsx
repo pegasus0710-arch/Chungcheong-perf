@@ -636,6 +636,7 @@ function RichEditor({value,onChange,placeholder,minHeight=220,readOnly=false,fon
 
   // ← 반드시 readOnly return 앞에 선언
   const [editorH, setEditorH] = useState(minHeight);
+  const [fullscreen, setFullscreen] = useState(false);
 
   if(readOnly){
     return(
@@ -660,10 +661,22 @@ function RichEditor({value,onChange,placeholder,minHeight=220,readOnly=false,fon
   }
 
   return(
-    <div style={{borderRadius:8,border:"1px solid rgba(56,182,245,.3)",...style}}>
+    <div style={{
+      borderRadius:fullscreen?0:8,
+      border:"1px solid rgba(56,182,245,.3)",
+      ...(fullscreen?{
+        position:"fixed",top:0,left:0,right:0,bottom:0,
+        zIndex:9000,background:C.bg,
+        display:"flex",flexDirection:"column",
+      }:{}),
+      ...(!fullscreen?style:{}),
+    }}>
       {/* ── 툴바 */}
-      <div style={{background:C.card2,borderBottom:`1px solid ${C.b1}`,
-        padding:"6px 10px",display:"flex",gap:4,flexWrap:"wrap",alignItems:"center"}}>
+      <div style={{
+        background:C.card2,borderBottom:`1px solid ${C.b1}`,
+        padding:"6px 10px",display:"flex",gap:4,flexWrap:"wrap",alignItems:"center",
+        ...(fullscreen?{}:{position:"sticky",top:0,zIndex:10}),
+      }}>
 
         {/* 서식 (execCommand 동작 OK) */}
         {[["B","bold","굵게"],["I","italic","기울임"],["U","underline","밑줄"],["S","strikeThrough","취소선"]].map(([l,c,t])=>(
@@ -781,6 +794,13 @@ function RichEditor({value,onChange,placeholder,minHeight=220,readOnly=false,fon
         <Sep/>
         {/* 서식초기화 */}
         <button onMouseDown={e=>{e.preventDefault();execCmd("removeFormat");}} style={{...BtnS,color:C.red}} title="서식 제거">서식초기화</button>
+        <Sep/>
+        {/* 전체화면 토글 */}
+        <button onMouseDown={e=>{e.preventDefault();setFullscreen(f=>!f);}}
+          style={{...BtnS,color:fullscreen?C.accent:C.muted2,marginLeft:"auto",flexShrink:0}}
+          title={fullscreen?"전체화면 종료 (ESC)":"전체화면 편집"}>
+          {fullscreen?"⊡ 닫기":"⊞ 전체화면"}
+        </button>
       </div>
 
       {/* ── 편집 영역 */}
@@ -793,9 +813,15 @@ function RichEditor({value,onChange,placeholder,minHeight=220,readOnly=false,fon
           onChange&&onChange({target:{value:v}});
           lastVal.current=v;
         }}
+        onKeyDown={e=>{
+          if(e.key==="Escape"&&fullscreen){e.preventDefault();setFullscreen(false);}
+        }}
         data-placeholder={placeholder}
         style={{
-          minHeight:editorH,height:editorH,padding:"14px 16px",
+          minHeight:fullscreen?"0":editorH,
+          height:fullscreen?"auto":editorH,
+          flex:fullscreen?"1":"none",
+          padding:"14px 16px",
           color:C.text,fontSize:14,lineHeight:1.7,
           outline:"none",background:C.bg,
           wordBreak:"break-word",overflowY:"auto",
@@ -961,8 +987,8 @@ function RichEditor({value,onChange,placeholder,minHeight=220,readOnly=false,fon
           cursor:col-resize;
         }
       `}</style>
-      {/* ── 높이 조절 핸들 */}
-      <div
+      {/* ── 높이 조절 핸들 (전체화면에서 숨김) */}
+      {!fullscreen&&<div
         style={{
           height:8,background:C.card2,
           borderTop:`1px solid ${C.b1}`,
@@ -990,7 +1016,7 @@ function RichEditor({value,onChange,placeholder,minHeight=220,readOnly=false,fon
           width:32,height:3,borderRadius:2,
           background:C.b2,pointerEvents:"none",
         }}/>
-      </div>
+      </div>}
     </div>
   );
 }
