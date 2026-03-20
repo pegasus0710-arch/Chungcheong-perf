@@ -2288,7 +2288,7 @@ function PlanApp(){
                         </div>
                         <div style={{display:"flex",gap:6,marginTop:4,flexWrap:"wrap"}}>
                           {grBase_x>0&&<span style={{color:C.muted2,fontSize:10}}>
-                            전년 {(Math.floor(grBase_x*10)/10).toLocaleString(undefined,{minimumFractionDigits:grBase_x%1>0?1:0,maximumFractionDigits:1})}억
+                            전년 {(Math.floor(grBase_x*10)/10).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1})}억
                           </span>}
                           {selGr_x!==null&&(
                             <span style={{color:grwC(selGr_x),fontSize:10,fontWeight:700}}>
@@ -2304,7 +2304,7 @@ function PlanApp(){
                             {selMi!==null?`${MONTHS[selMi]} 실적`:`${emiLabel} 누계`}
                           </div>
                           <div style={{color:mc,fontSize:20,fontWeight:900,letterSpacing:"-.5px",lineHeight:1}}>
-                            {(Math.floor(selPerf_x*10)/10).toLocaleString(undefined,{minimumFractionDigits:selPerf_x%1>0?1:0,maximumFractionDigits:1})}억
+                            {(Math.floor(selPerf_x*10)/10).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1})}억
                           </div>
                           <div style={{display:"flex",gap:6,marginTop:4,flexWrap:"wrap"}}>
                             {selAr_x&&<span style={{

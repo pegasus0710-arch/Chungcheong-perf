@@ -4983,7 +4983,7 @@ function PlanApp() {
           fontSize: 10
         }
       }, "\uC804\uB144 ", (Math.floor(grBase_x * 10) / 10).toLocaleString(undefined, {
-        minimumFractionDigits: grBase_x % 1 > 0 ? 1 : 0,
+        minimumFractionDigits: 1,
         maximumFractionDigits: 1
       }), "\uC5B5"), selGr_x !== null && /*#__PURE__*/React.createElement("span", {
         style: {
@@ -5018,7 +5018,7 @@ function PlanApp() {
           lineHeight: 1
         }
       }, (Math.floor(selPerf_x * 10) / 10).toLocaleString(undefined, {
-        minimumFractionDigits: selPerf_x % 1 > 0 ? 1 : 0,
+        minimumFractionDigits: 1,
         maximumFractionDigits: 1
       }), "\uC5B5"), /*#__PURE__*/React.createElement("div", {
         style: {
