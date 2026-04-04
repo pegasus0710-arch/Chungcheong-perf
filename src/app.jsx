@@ -1764,12 +1764,14 @@ function InputTab({data,setData,mode,onSave,saveState,hasUnsaved,dbStatus,onImpo
   const prevYr = yr==="26"?"25":yr==="25"?"24":null;
   const prevP  = prevYr ? (data[prevYr]?.[mode]?.perf || emptyM()) : null;
 
-  // Firebase 로드 후 마지막 입력월 자동 선택
+  // yr/mode 변경 시에만 마지막 입력월 자동 선택 (data 변경 시 재실행 안함)
   useEffect(()=>{
+    const pD_ = data[yr]?.[mode]?.perf || emptyM();
     for(let i=11;i>=0;i--){
-      if(INP_KEYS.some(k=>gNum(pD[sk(i)]?.[k])>0)){ setMi(i); return; }
+      if(INP_KEYS.some(k=>gNum(pD_[sk(i)]?.[k])>0)){ setMi(i); return; }
     }
-  },[yr,mode,data]);
+    setMi(new Date().getMonth());
+  },[yr,mode]); // data 제거 → 저장/수정 시 월 튀는 현상 방지
 
   const setVal = useCallback((type,mIdx,key,val)=>{
     setData(prev=>{
